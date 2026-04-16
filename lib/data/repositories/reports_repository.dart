@@ -33,12 +33,13 @@ class ReportsRepository {
   Future<List<Map<String, dynamic>>> getShiftReport(int shiftId) async {
     final db = await dbHelper.database;
 
+    // الفلترة هنا بالـ shift_id فقط تضمن أن بيانات كل وردية منفصلة تماماً
     return await db.rawQuery('''
       SELECT 
         s.id,
         u.name AS employee_name,
         p.name AS product_name,
-        s.quantity AS total_quantity,
+        s.quantity AS total_quantity, -- تأكد من الاسم هنا
         s.unit_price,
         s.total_amount,
         s.status,
@@ -46,11 +47,10 @@ class ReportsRepository {
       FROM sales s
       JOIN users u ON s.user_id = u.id
       JOIN products p ON s.product_id = p.id
-      WHERE s.shift_id = ?
-      ORDER BY s.created_at DESC
+      WHERE s.shift_id = ? 
+      ORDER BY s.id DESC
     ''', [shiftId]);
   }
-
   /// 3. تحديث حالة العملية (إلغاء أو تفعيل)
   /// تستخدم لتغيير حالة البيع من active إلى cancelled والعكس
   Future<void> updateSaleStatus(int saleId, String newStatus) async {

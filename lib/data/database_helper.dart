@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:path/path.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:intl/intl.dart';
+import 'package:get/get.dart';   // أضف هذا السطر لو مش موجود
 
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
@@ -8,11 +10,19 @@ class DatabaseHelper {
 
   DatabaseHelper._init();
 
+  // Streams للتحديث التلقائي
   static final _salesStreamController = StreamController<void>.broadcast();
+  static final _shiftsStreamController = StreamController<void>.broadcast();
+
   static Stream<void> get salesStream => _salesStreamController.stream;
+  static Stream<void> get shiftsStream => _shiftsStreamController.stream;
 
   static void notifySalesChanged() {
     _salesStreamController.add(null);
+  }
+
+  static void notifyShiftsChanged() {
+    _shiftsStreamController.add(null);
   }
 
   Future<Database> get database async {
@@ -23,24 +33,81 @@ class DatabaseHelper {
 
   Future<Database> _initDB(String filePath) async {
     sqfliteFfiInit();
-
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
-
     return await databaseFactoryFfi.openDatabase(
       path,
       options: OpenDatabaseOptions(
-        version: 7, // حدثنا الرقم ليتناسب مع التعديلات
+        version: 8,                    // تم رفع النسخة
         onCreate: _createDB,
         onUpgrade: _onUpgrade,
-        onConfigure: _onConfigure, // إضافة مهمة لتفعيل العلاقات
+        onConfigure: _onConfigure,
       ),
     );
   }
 
-  // تفعيل الـ Foreign Keys
   Future<void> _onConfigure(Database db) async {
     await db.execute('PRAGMA foreign_keys = ON');
+  }
+
+  // --- 1. فتح شيفت جديد مع تحديث تلقائي ---
+  Future<void> startNewShift(String type) async {
+    final db = await database;
+
+    // قفل أي شفت مفتوح سابقًا
+    await db.update(
+      'shifts',
+      {
+        'is_open': 0,
+        'end_time': DateTime.now().toIso8601String(),
+      },
+      where: 'is_open = ?',
+      whereArgs: [1],
+    );
+
+    // فتح شيفت جديد
+    await db.insert('shifts', {
+      'type': type,
+      'date': DateFormat('yyyy-MM-dd').format(DateTime.now()),
+      'is_open': 1,
+      'start_time': DateTime.now().toIso8601String(),
+      'end_time': null,
+    });
+
+    // تحديث تلقائي للصفحة
+    notifyShiftsChanged();
+    notifySalesChanged();
+  }
+
+  // --- 2. جلب رقم الوردية المفتوحة حالياً ---
+  Future<int?> getOpenShiftId() async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'shifts',
+      where: 'is_open = ?',
+      whereArgs: [1],
+      orderBy: 'id DESC',
+      limit: 1,
+    );
+    if (maps.isNotEmpty) {
+      return maps.first['id'] as int;
+    }
+    return null;
+  }
+
+  // --- 3. إضافة عملية بيع مرتبطة بالوردية الحالية ---
+  Future<int> insertSale(Map<String, dynamic> saleData) async {
+    final db = await database;
+    int? activeShiftId = await getOpenShiftId();
+    if (activeShiftId == null) {
+      throw Exception("لا توجد وردية مفتوحة حالياً لتسجيل البيع");
+    }
+    final completeData = Map<String, dynamic>.from(saleData);
+    completeData['shift_id'] = activeShiftId;
+    completeData['created_at'] = DateTime.now().toIso8601String();
+    int id = await db.insert('sales', completeData);
+    notifySalesChanged();
+    return id;
   }
 
   Future<void> _createDB(Database db, int version) async {
@@ -54,7 +121,6 @@ class DatabaseHelper {
         created_at TEXT
       )
     ''');
-
     await db.execute('''
       CREATE TABLE products (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -65,7 +131,6 @@ class DatabaseHelper {
         cost_price REAL DEFAULT 0
       )
     ''');
-
     await db.execute('''
       CREATE TABLE shifts (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -76,7 +141,6 @@ class DatabaseHelper {
         end_time TEXT
       )
     ''');
-
     await db.execute('''
       CREATE TABLE sales (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -93,18 +157,23 @@ class DatabaseHelper {
         FOREIGN KEY (shift_id) REFERENCES shifts(id)
       )
     ''');
-
     await _createDefaultAdmin(db);
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 6) {
-      // التأكد من عدم وجود العمود قبل إضافته لتجنب الأخطاء
       await db.execute("ALTER TABLE sales ADD COLUMN status TEXT DEFAULT 'active'");
     }
     if (oldVersion < 7) {
       await db.execute("ALTER TABLE products ADD COLUMN cost_price REAL DEFAULT 0");
-      // تم مسح سطر التحديث الخاطئ لـ total_amount لأنه موجود بالفعل في onCreate
+    }
+    if (oldVersion < 8) {
+      // Reset كامل في حال الترقية (اختياري - احذر لو عندك بيانات مهمة)
+      await db.execute('DROP TABLE IF EXISTS sales');
+      await db.execute('DROP TABLE IF EXISTS shifts');
+      await db.execute('DROP TABLE IF EXISTS products');
+      await db.execute('DROP TABLE IF EXISTS users');
+      await _createDB(db, newVersion);
     }
   }
 

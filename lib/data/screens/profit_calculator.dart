@@ -1,88 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:intl/intl.dart';
-import '../repositories/reports_repository.dart';
+import '../controllers/profit_controller.dart';
 
-class ProfitCalculatorScreen extends StatefulWidget {
+class ProfitCalculatorScreen extends StatelessWidget {
   const ProfitCalculatorScreen({super.key});
 
   @override
-  State<ProfitCalculatorScreen> createState() => _ProfitCalculatorScreenState();
-}
-
-class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen> {
-  final repo = ReportsRepository();
-
-  // تحكم الحقول
-  final rentCtrl = TextEditingController();
-  final salariesCtrl = TextEditingController();
-  final electricityCtrl = TextEditingController();
-  final waterCtrl = TextEditingController();
-  final otherCtrl = TextEditingController();
-
-  double totalSales = 0.0;
-  double netProfit = 0.0;
-  double totalExpenses = 0.0;
-  bool isLoading = true;
-  bool calculated = false;
-
-  final _formatter = NumberFormat('#,###.##', 'ar_EG');
-
-  @override
-  void initState() {
-    super.initState();
-    loadMonthlySales();
-  }
-
-  Future<void> loadMonthlySales() async {
-    setState(() => isLoading = true);
-    try {
-      final now = DateTime.now();
-      final data = await repo.getMonthlyReport(month: now.month, year: now.year);
-
-      // تعديل هنا لضمان عدم حدوث Type Error
-      final sales = data.fold<double>(
-        0.0,
-            (sum, item) => sum + (item['total_amount'] as num).toDouble(),
-      );
-
-      setState(() {
-        totalSales = sales;
-        isLoading = false;
-      });
-    } catch (e) {
-      setState(() => isLoading = false);
-      _showError('فشل تحميل المبيعات: $e');
-    }
-  }
-
-  void _showError(String msg) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-    }
-  }
-
-  void calculate() {
-    // ميثود مساعدة لتحويل النص لرقم بأمان
-    double parse(TextEditingController controller) {
-      String text = controller.text.replaceAll(',', '').trim();
-      return double.tryParse(text) ?? 0.0;
-    }
-
-    final rent = parse(rentCtrl);
-    final salaries = parse(salariesCtrl);
-    final electricity = parse(electricityCtrl);
-    final water = parse(waterCtrl);
-    final other = parse(otherCtrl);
-
-    setState(() {
-      totalExpenses = rent + salaries + electricity + water + other;
-      netProfit = totalSales - totalExpenses;
-      calculated = true;
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
+    // ربط الكنترولر
+    final controller = Get.put(ProfitController());
+    final formatter = NumberFormat('#,###.##', 'ar_EG');
+
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
@@ -98,10 +27,17 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen> {
             constraints: const BoxConstraints(maxWidth: 600),
             child: Column(
               children: [
-                _buildSalesCard(),
+                // كارت المبيعات
+                Obx(() => _buildSalesCard(controller, formatter)),
                 const SizedBox(height: 20),
-                _buildExpensesForm(),
-                if (calculated) _buildResultCard(),
+
+                // فورم المصروفات
+                _buildExpensesForm(controller),
+
+                // نتيجة الحساب
+                Obx(() => controller.isCalculated.value
+                    ? _buildResultCard(controller, formatter)
+                    : const SizedBox.shrink()),
               ],
             ),
           ),
@@ -110,21 +46,21 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen> {
     );
   }
 
-  Widget _buildSalesCard() {
+  Widget _buildSalesCard(ProfitController controller, NumberFormat formatter) {
     return Card(
       elevation: 4,
       color: Colors.teal[700],
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       child: Padding(
         padding: const EdgeInsets.all(20),
-        child: isLoading
+        child: controller.isLoading.value
             ? const Center(child: CircularProgressIndicator(color: Colors.white))
             : Column(
           children: [
             const Text('إجمالي مبيعات الشهر الحالي', style: TextStyle(color: Colors.white70, fontSize: 16)),
             const SizedBox(height: 8),
             Text(
-              '${_formatter.format(totalSales)} ج.م',
+              '${formatter.format(controller.totalSales.value)} ج.م',
               style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
             ),
           ],
@@ -133,7 +69,7 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen> {
     );
   }
 
-  Widget _buildExpensesForm() {
+  Widget _buildExpensesForm(ProfitController controller) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
@@ -144,17 +80,17 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen> {
           children: [
             const Text('أدخل المصروفات الشهرية:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 20),
-            _inputField('إيجار المحل', rentCtrl, Icons.home_work),
-            _inputField('مرتبات الموظفين', salariesCtrl, Icons.people),
-            _inputField('فاتورة الكهرباء', electricityCtrl, Icons.electric_bolt),
-            _inputField('فاتورة المياه', waterCtrl, Icons.water_drop),
-            _inputField('مصروفات أخرى', otherCtrl, Icons.more_horiz),
+            _inputField('إيجار المحل', controller.rentCtrl, Icons.home_work, controller),
+            _inputField('مرتبات الموظفين', controller.salariesCtrl, Icons.people, controller),
+            _inputField('فاتورة الكهرباء', controller.electricityCtrl, Icons.electric_bolt, controller),
+            _inputField('فاتورة المياه', controller.waterCtrl, Icons.water_drop, controller),
+            _inputField('مصروفات أخرى', controller.otherCtrl, Icons.more_horiz, controller),
             const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
               height: 55,
               child: ElevatedButton.icon(
-                onPressed: calculate,
+                onPressed: controller.calculate,
                 icon: const Icon(Icons.calculate),
                 label: const Text('احسب صافي الربح', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 style: ElevatedButton.styleFrom(
@@ -170,13 +106,13 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen> {
     );
   }
 
-  Widget _inputField(String label, TextEditingController controller, IconData icon) {
+  Widget _inputField(String label, TextEditingController ctrl, IconData icon, ProfitController controller) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: TextField(
-        controller: controller,
+        controller: ctrl,
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        onChanged: (_) => setState(() => calculated = false),
+        onChanged: (_) => controller.resetCalculation(),
         decoration: InputDecoration(
           labelText: label,
           prefixIcon: Icon(icon, color: Colors.teal),
@@ -188,8 +124,8 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen> {
     );
   }
 
-  Widget _buildResultCard() {
-    final bool isProfit = netProfit >= 0;
+  Widget _buildResultCard(ProfitController controller, NumberFormat formatter) {
+    final bool isProfit = controller.netProfit.value >= 0;
     return Padding(
       padding: const EdgeInsets.only(top: 20),
       child: Card(
@@ -208,11 +144,14 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen> {
               ),
               const SizedBox(height: 5),
               Text(
-                '${_formatter.format(netProfit.abs())} ج.م',
+                '${formatter.format(controller.netProfit.value.abs())} ج.م',
                 style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: isProfit ? Colors.green[900] : Colors.red[900]),
               ),
               const Divider(),
-              Text('إجمالي المصروفات: ${_formatter.format(totalExpenses)} ج.م', style: const TextStyle(color: Colors.black54)),
+              Text(
+                'إجمالي المصروفات: ${formatter.format(controller.totalExpenses.value)} ج.م',
+                style: const TextStyle(color: Colors.black54),
+              ),
             ],
           ),
         ),

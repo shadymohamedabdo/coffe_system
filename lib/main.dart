@@ -1,19 +1,24 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:get/get.dart';
+import 'package:path/path.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
-import 'data/dashboard_cubit/dashboard_cubit.dart';
-import 'data/sale_cubit/sale_cubit.dart';
 import 'data/screens/login_screen.dart';
 
-import 'data/user_cubit/user_cubit.dart';
+Future<void> main() async {
+  // 1. لازم ده يكون أول سطر لضمان عمل أي دوال خارجية
+  WidgetsFlutterBinding.ensureInitialized();
 
-
-
-void main() {
-
-  // تهيئة قاعدة البيانات للـ Windows/Desktop
+  // 2. تهيئة الـ ffi للويندوز (لازم قبل getDatabasesPath)
   sqfliteFfiInit();
   databaseFactory = databaseFactoryFfi;
+
+  // 3. دلوقتي تقدر تجيب المسار وتطبعه بأمان
+  final dbFolder = await getDatabasesPath();
+  final fullPath = join(dbFolder, 'coffee_pos.db'); // تأكد من اسم الملف اللي بتستخدمه في الهيلبر
+
+  print("--------------------------------------------------");
+  print("✅ Database Full Path: $fullPath");
+  print("--------------------------------------------------");
 
   runApp(const CoffeePOSApp());
 }
@@ -23,39 +28,14 @@ class CoffeePOSApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
-    return       MaterialApp(
+    return GetMaterialApp(
       title: 'Coffee POS',
-      theme: ThemeData(primarySwatch: Colors.brown),
+      theme: ThemeData(
+        primarySwatch: Colors.brown,
+        useMaterial3: true,
+      ),
       home: const LoginScreen(),
       debugShowCheckedModeBanner: false,
     );
-
-    //   MultiBlocProvider(
-    //   // providers: [
-    //   //   BlocProvider<DashboardCubit>(
-    //   //     create: (_) => getIt<DashboardCubit>()..loadData(),
-    //   //   ),
-    //   //   BlocProvider<ShiftReportCubit>(
-    //   //     create: (_) => getIt<ShiftReportCubit>()..loadShifts(),
-    //   //   ),
-    //   //   BlocProvider<MonthlyReportCubit>(
-    //   //     create: (_) => getIt<MonthlyReportCubit>(),
-    //   //   ),
-    //   //   BlocProvider<ProductsCubit>(
-    //   //     create: (_) => getIt<ProductsCubit>(),
-    //   //   ),
-    //   //   BlocProvider<UsersCubit>(
-    //   //     create: (_) => getIt<UsersCubit>()..loadEmployees(),
-    //   //   ),
-    //   //   BlocProvider<AddSaleCubit>(
-    //   //     create: (_) => getIt<AddSaleCubit>(),
-    //   //   ),
-    //   // ],
-    //   child:
-    // );
   }
 }
-
-
-

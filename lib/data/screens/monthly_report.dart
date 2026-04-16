@@ -1,63 +1,15 @@
 import 'package:flutter/material.dart';
-import '../repositories/reports_repository.dart'; // تأكد من صحة المسار
+import 'package:get/get.dart';
+import '../controllers/monthly_report_controller.dart';
 
-class MonthlyReportScreen extends StatefulWidget {
+class MonthlyReportScreen extends StatelessWidget {
   const MonthlyReportScreen({super.key});
 
   @override
-  State<MonthlyReportScreen> createState() => _MonthlyReportScreenState();
-}
-
-class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
-  // تعريف المستودع لجلب البيانات
-  final ReportsRepository _repo = ReportsRepository();
-
-  bool isLoading = true;
-  String? errorMessage;
-  List<Map<String, dynamic>> data = [];
-  double totalSum = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    loadReport();
-  }
-
-  /// ميثود جلب البيانات من الداتا بيز
-  void loadReport() async {
-    setState(() {
-      isLoading = true;
-      errorMessage = null;
-    });
-
-    try {
-      final now = DateTime.now();
-
-      // استدعاء البيانات الحقيقية من الـ Repository
-      final result = await _repo.getMonthlyReport(
-        month: now.month,
-        year: now.year,
-      );
-
-      setState(() {
-        data = result;
-        // حساب الإجمالي الكلي من الحقل القادم من الداتا بيز
-        totalSum = data.fold(
-          0.0,
-              (sum, item) => sum + (item['total_amount'] as num).toDouble(),
-        );
-        isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        errorMessage = "حدث خطأ أثناء تحميل البيانات: $e";
-        isLoading = false;
-      });
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
+    // حقن الـ Controller
+    final controller = Get.put(MonthlyReportController());
+
     return Scaffold(
       backgroundColor: Colors.brown[50],
       appBar: AppBar(
@@ -68,10 +20,8 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
-            tooltip: 'تحديث التقرير',
-            onPressed: loadReport,
+            onPressed: controller.loadReport,
           ),
-          const SizedBox(width: 8),
         ],
       ),
       body: Padding(
@@ -79,17 +29,27 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
         child: Column(
           children: [
             const SizedBox(height: 10),
-
-            // عرض الشهر والسنة الحاليين
+            // عرض التاريخ الحالي
             Text(
               "تقرير شهر ${DateTime.now().month} / ${DateTime.now().year}",
               style: TextStyle(color: Colors.brown[800], fontWeight: FontWeight.bold, fontSize: 16),
             ),
-
             const SizedBox(height: 20),
 
+            // مراقبة الحالة (Loading, Error, Success)
             Expanded(
-              child: _buildBody(),
+              child: Obx(() {
+                if (controller.isLoading.value) {
+                  return _buildLoading();
+                }
+                if (controller.errorMessage.isNotEmpty) {
+                  return _buildError(controller);
+                }
+                if (controller.reportData.isEmpty) {
+                  return const Center(child: Text('لا توجد مبيعات مسجلة لهذا الشهر'));
+                }
+                return _buildReportTable(controller);
+              }),
             ),
           ],
         ),
@@ -97,101 +57,84 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
     );
   }
 
-  /// ويدجت بناء محتوى الصفحة بناءً على الحالة
-  Widget _buildBody() {
-    if (isLoading) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator(color: Colors.brown),
-            SizedBox(height: 20),
-            Text('جاري استخراج التقرير من الداتا بيز...', style: TextStyle(fontSize: 16)),
-          ],
-        ),
-      );
-    }
+  // ودجيت التحميل
+  Widget _buildLoading() {
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircularProgressIndicator(color: Colors.brown),
+          SizedBox(height: 20),
+          Text('جاري استخراج التقرير...'),
+        ],
+      ),
+    );
+  }
 
-    if (errorMessage != null) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.error_outline, size: 64, color: Colors.red),
-            const SizedBox(height: 16),
-            Text(errorMessage!, style: const TextStyle(color: Colors.red, fontSize: 16), textAlign: TextAlign.center),
-            ElevatedButton(onPressed: loadReport, child: const Text("إعادة المحاولة")),
-          ],
-        ),
-      );
-    }
+  // ودجيت الخطأ
+  Widget _buildError(MonthlyReportController controller) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.error_outline, size: 60, color: Colors.red),
+          Text(controller.errorMessage.value, style: const TextStyle(color: Colors.red)),
+          ElevatedButton(onPressed: controller.loadReport, child: const Text("إعادة المحاولة")),
+        ],
+      ),
+    );
+  }
 
-    if (data.isEmpty) {
-      return const Center(
-        child: Text('لا توجد مبيعات مسجلة لهذا الشهر حتى الآن', style: TextStyle(fontSize: 18, color: Colors.brown)),
-      );
-    }
-
+  // ودجيت الجدول والإجمالي
+  Widget _buildReportTable(MonthlyReportController controller) {
     return Column(
       children: [
         Expanded(
           child: Card(
-            elevation: 6,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            color: Colors.white,
-            child: SizedBox(
-              width: double.infinity,
+            elevation: 4,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.vertical,
               child: SingleChildScrollView(
-                scrollDirection: Axis.vertical,
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: DataTable(
-                    headingRowHeight: 56,
-                    dataRowHeight: 60,
-                    headingRowColor: WidgetStateProperty.all(Colors.brown[400]),
-                    columns: const [
-                      DataColumn(label: Text('المنتج', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white))),
-                      DataColumn(label: Text('الكمية', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white))),
-                      DataColumn(label: Text('السعر', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white))),
-                      DataColumn(label: Text('الإجمالي', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white))),
-                    ],
-                    rows: data.map((row) {
-                      return DataRow(
-                        cells: [
-                          DataCell(Text(row['product_name'] ?? '-', style: const TextStyle(fontWeight: FontWeight.w600))),
-                          DataCell(Text(row['total_quantity'].toString())),
-                          DataCell(Text('${row['unit_price']} ج.م')),
-                          DataCell(Text('${(row['total_amount'] as num).toStringAsFixed(2)} ج.م',
-                              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.brown))),
-                        ],
-                      );
-                    }).toList(),
-                  ),
+                scrollDirection: Axis.horizontal,
+                child: DataTable(
+                  headingRowColor: WidgetStateProperty.all(Colors.brown[400]),
+                  columns: const [
+                    DataColumn(label: Text('المنتج', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+                    DataColumn(label: Text('الكمية', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+                    DataColumn(label: Text('السعر', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+                    DataColumn(label: Text('الإجمالي', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+                  ],
+                  rows: controller.reportData.map((row) {
+                    return DataRow(cells: [
+                      DataCell(Text(row['product_name'] ?? '-')),
+                      DataCell(Text(row['total_quantity'].toString())),
+                      DataCell(Text('${row['unit_price']} ج.م')),
+                      DataCell(Text('${(row['total_amount'] as num).toStringAsFixed(2)} ج.م',
+                          style: const TextStyle(fontWeight: FontWeight.bold))),
+                    ]);
+                  }).toList(),
                 ),
               ),
             ),
           ),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 15),
 
-        // كارت الإجمالي الكلي
+        // كارت الإجمالي النهائي
         Card(
-          elevation: 8,
           color: Colors.green[700],
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
           child: Padding(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(20),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.account_balance_wallet, size: 32, color: Colors.white),
-                const SizedBox(width: 16),
-                Flexible(
-                  child: Text(
-                    'إجمالي مبيعات الشهر: ${totalSum.toStringAsFixed(2)} جنيه',
-                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                const Icon(Icons.payments, color: Colors.white),
+                const SizedBox(width: 15),
+                Text(
+                  'إجمالي المبيعات: ${controller.totalSum.value.toStringAsFixed(2)} ج.م',
+                  style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
                 ),
               ],
             ),

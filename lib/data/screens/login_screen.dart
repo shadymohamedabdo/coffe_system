@@ -1,115 +1,79 @@
 import 'package:flutter/material.dart';
-import '../repositories/users_repository.dart';
-import 'home_screen.dart';
+import 'package:get/get.dart';
+import '../controllers/login_controller.dart';
 
-class LoginScreen extends StatefulWidget {
+class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
-}
-
-class _LoginScreenState extends State<LoginScreen> {
-  final repo = UsersRepository();
-  final usernameController = TextEditingController();
-  final passwordController = TextEditingController();
-
-  bool isLoading = false; // ← جديد
-
-  Future<void> login() async {
-    if (isLoading) return; // منع الضغط المتكرر
-
-    setState(() {
-      isLoading = true;
-    });
-
-    try {
-      final user = await repo.login(
-        usernameController.text.trim(),
-        passwordController.text,
-      );
-
-      if (user != null && mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => HomeScreen(currentUser: user),
-          ),
-        );
-      } else if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('اسم المستخدم أو كلمة المرور خطأ')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('حدث خطأ، حاول مرة أخرى')),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          isLoading = false;
-        });
-      }
-    }
-  }
-
-  @override
-  void dispose() {
-    usernameController.dispose();
-    passwordController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
+    // حقن الـ Controller
+    final controller = Get.put(LoginController());
+
     return Scaffold(
-      appBar: AppBar(title: const Text('تسجيل الدخول')),
+      backgroundColor: Colors.brown[50], // خلفية هادية
       body: Center(
-        child: SizedBox(
-          width: 400,
-          child: Card(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: usernameController,
-                    textInputAction: TextInputAction.next,
-                    decoration: const InputDecoration(
-                      labelText: 'اسم المستخدم',
-                      border: OutlineInputBorder(),
+        child: SingleChildScrollView(
+          child: SizedBox(
+            width: 400,
+            child: Card(
+              elevation: 10,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.coffee_rounded, size: 80, color: Colors.brown),
+                    const SizedBox(height: 10),
+                    const Text(
+                      'محل البن - تسجيل الدخول',
+                      style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.brown),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: passwordController,
-                    obscureText: true,
-                    textInputAction: TextInputAction.done,
-                    onSubmitted: (_) => login(),
-                    decoration: const InputDecoration(
-                      labelText: 'كلمة المرور',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton(
-                    onPressed: isLoading ? null : login,
-                    child: isLoading
-                        ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2,
+                    const SizedBox(height: 30),
+
+                    // حقل اسم المستخدم
+                    TextField(
+                      controller: controller.usernameCtrl,
+                      decoration: InputDecoration(
+                        labelText: 'اسم المستخدم',
+                        prefixIcon: const Icon(Icons.person),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
                       ),
-                    )
-                        : const Text('تسجيل الدخول'),
-                  ),
-                ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    // حقل كلمة المرور
+                    TextField(
+                      controller: controller.passwordCtrl,
+                      obscureText: true,
+                      decoration: InputDecoration(
+                        labelText: 'كلمة المرور',
+                        prefixIcon: const Icon(Icons.lock),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
+                      ),
+                      onSubmitted: (_) => controller.login(),
+                    ),
+                    const SizedBox(height: 30),
+
+                    // زر تسجيل الدخول
+                    Obx(() => SizedBox(
+                      width: double.infinity,
+                      height: 55,
+                      child: ElevatedButton(
+                        onPressed: controller.isLoading.value ? null : controller.login,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.brown[700],
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                        ),
+                        child: controller.isLoading.value
+                            ? const CircularProgressIndicator(color: Colors.white)
+                            : const Text('دخول النظام', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      ),
+                    )),
+                  ],
+                ),
               ),
             ),
           ),
