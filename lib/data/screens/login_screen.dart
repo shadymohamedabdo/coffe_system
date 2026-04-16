@@ -2,16 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/login_controller.dart';
 
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends GetView<LoginController> {
   const LoginScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // حقن الـ Controller
-    final controller = Get.put(LoginController());
-
     return Scaffold(
-      backgroundColor: Colors.brown[50], // خلفية هادية
+      backgroundColor: Colors.brown[50],
       body: Center(
         child: SingleChildScrollView(
           child: SizedBox(
@@ -27,7 +24,7 @@ class LoginScreen extends StatelessWidget {
                     const Icon(Icons.coffee_rounded, size: 80, color: Colors.brown),
                     const SizedBox(height: 10),
                     const Text(
-                      'محل البن - تسجيل الدخول',
+                      'تسجيل الدخول',
                       style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.brown),
                     ),
                     const SizedBox(height: 30),
@@ -35,28 +32,37 @@ class LoginScreen extends StatelessWidget {
                     // حقل اسم المستخدم
                     TextField(
                       controller: controller.usernameCtrl,
+                      focusNode: controller.userFocus, // استخدام الـ Node من الكنترولر
+                      textInputAction: TextInputAction.next,
                       decoration: InputDecoration(
                         labelText: 'اسم المستخدم',
                         prefixIcon: const Icon(Icons.person),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
                       ),
+                      // التنقل السلس للحقل التالي عند الضغط على Enter
+                      onSubmitted: (_) {
+                        controller.passwordFocus.requestFocus();
+                      },
                     ),
                     const SizedBox(height: 16),
 
                     // حقل كلمة المرور
                     TextField(
                       controller: controller.passwordCtrl,
+                      focusNode: controller.passwordFocus, // استخدام الـ Node من الكنترولر
                       obscureText: true,
+                      textInputAction: TextInputAction.done,
                       decoration: InputDecoration(
                         labelText: 'كلمة المرور',
                         prefixIcon: const Icon(Icons.lock),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
                       ),
+                      // تنفيذ ميثود تسجيل الدخول مباشرة عند الضغط على Enter
                       onSubmitted: (_) => controller.login(),
                     ),
                     const SizedBox(height: 30),
 
-                    // زر تسجيل الدخول
+                    // زر تسجيل الدخول مع مراقبة الحالة
                     Obx(() => SizedBox(
                       width: double.infinity,
                       height: 55,

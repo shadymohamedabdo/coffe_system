@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:path/path.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'data/controllers/login_controller.dart';
 import 'data/screens/login_screen.dart';
 
 Future<void> main() async {
@@ -11,14 +12,9 @@ Future<void> main() async {
   // 2. تهيئة الـ ffi للويندوز (لازم قبل getDatabasesPath)
   sqfliteFfiInit();
   databaseFactory = databaseFactoryFfi;
+  // في main.dart أو قبل التنقل
+  Get.lazyPut(() => LoginController());
 
-  // 3. دلوقتي تقدر تجيب المسار وتطبعه بأمان
-  final dbFolder = await getDatabasesPath();
-  final fullPath = join(dbFolder, 'coffee_pos.db'); // تأكد من اسم الملف اللي بتستخدمه في الهيلبر
-
-  print("--------------------------------------------------");
-  print("✅ Database Full Path: $fullPath");
-  print("--------------------------------------------------");
 
   runApp(const CoffeePOSApp());
 }
