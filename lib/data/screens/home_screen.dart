@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../binding.dart';
 import '../controllers/home_controller.dart';
 // استيراد الشاشات الخاصة بك
 import 'add_sale_screen.dart';
@@ -23,7 +24,7 @@ class HomeScreen extends GetView<HomeController> {
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: const Text(
-          'محل البن - POS',
+          'بيت البن ',
           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
         centerTitle: true,
@@ -104,7 +105,7 @@ class HomeScreen extends GetView<HomeController> {
                       onTap: () => Get.to(() => const ProfitCalculatorScreen()),
                     ),
                     _buildMenuItem(
-                      label: 'لوحة التحكم',
+                      label: 'الاحصائيات',
                       icon: Icons.dashboard_rounded,
                       color: Colors.blueAccent[100]!,
                       onTap: () => Get.to(() => const DashboardScreen()),
@@ -125,7 +126,7 @@ class HomeScreen extends GetView<HomeController> {
                       label: 'إدارة الموظفين',
                       icon: Icons.badge_rounded,
                       color: Colors.purpleAccent[100]!,
-                      onTap: () => Get.to(() => AddEmployeeScreen(currentUser: controller.currentUser)),
+                      onTap: () => Get.to(() => AddEmployeeScreen(currentUser: controller.currentUser),binding: EmployeesBinding()),
                     ),
                   ],
                 ],
