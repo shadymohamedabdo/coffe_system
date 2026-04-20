@@ -1,18 +1,11 @@
 class Product {
-  final int id;
+  final int? id; // خليه اختياري عشان الإضافة
   final String name;
-  final String category; // bean / drink
-  final String unit;     // kg / cup
+  final String category;
+  final String unit;
   final double price;
 
-  Product({
-    required this.id,
-    required this.name,
-    required this.category,
-    required this.unit,
-    required this.price,
-  });
-
+  Product({this.id, required this.name, required this.category, required this.unit, required this.price});
 
   factory Product.fromMap(Map<String, dynamic> map) {
     return Product(
@@ -24,4 +17,14 @@ class Product {
     );
   }
 
+  // ضيف دي عشان تسهل الإضافة والتعديل
+  Map<String, dynamic> toMap() {
+    return {
+      if (id != null) 'id': id,
+      'name': name,
+      'category': category,
+      'unit': unit,
+      'price': price,
+    };
+  }
 }

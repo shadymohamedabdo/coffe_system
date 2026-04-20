@@ -120,7 +120,7 @@ class HomeScreen extends GetView<HomeController> {
                       label: 'إدارة المنتجات',
                       icon: Icons.coffee_rounded,
                       color: Colors.brown[200]!,
-                      onTap: () => Get.to(() => const ProductsScreen()),
+                      onTap: () => Get.to(() => const ProductsScreen(),binding: ProductsBinding()),
                     ),
                     _buildMenuItem(
                       label: 'إدارة الموظفين',

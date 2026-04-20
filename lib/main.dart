@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'data/binding.dart';
-import 'data/controllers/login_controller.dart';
 import 'data/screens/login_screen.dart';
 
 Future<void> main() async {
@@ -13,7 +12,6 @@ Future<void> main() async {
   sqfliteFfiInit();
   databaseFactory = databaseFactoryFfi;
   // في main.dart أو قبل التنقل
-  // Get.lazyPut(() => LoginController());
 
 
 
