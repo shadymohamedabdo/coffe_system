@@ -96,7 +96,7 @@ class HomeScreen extends GetView<HomeController> {
                       label: 'التقرير الشهري',
                       icon: Icons.calendar_month_rounded,
                       color: Colors.tealAccent[400]!,
-                      onTap: () => Get.to(() => const MonthlyReportScreen()),
+                      onTap: () => Get.to(() =>  MonthlyReportScreen(),binding: MonthlyReportBinding()),
                     ),
                     _buildMenuItem(
                       label: 'حاسبة الأرباح',
