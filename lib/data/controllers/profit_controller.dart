@@ -29,7 +29,8 @@ class ProfitController extends GetxController {
     isLoading(true);
     try {
       final now = DateTime.now();
-      final data = await repo.getMonthlyReport(month: now.month, year: now.year);
+      // ✅ التصحيح: استخدام معاملات موضعية بدلاً من المسماة
+      final data = await repo.getMonthlyReport(now.month, now.year);
 
       final sales = data.fold<double>(
         0.0,

@@ -5,27 +5,25 @@ class ReportsRepository {
 
   /// 1. التقرير الشهري المجمع
   /// يعرض إجمالي مبيعات كل منتج على حدة خلال شهر وسنة محددين
-  Future<List<Map<String, dynamic>>> getMonthlyReport({
-    required int month,
-    required int year,
-  }) async {
-    final db = await dbHelper.database;
+  Future<List<Map<String, dynamic>>> getMonthlyReport(int month, int year) async {
+    final db = await DatabaseHelper.instance.database;
     final monthStr = month.toString().padLeft(2, '0');
 
-    return await db.rawQuery('''
-      SELECT 
-        p.name AS product_name,
-        SUM(s.quantity) AS total_quantity,
-        s.unit_price,
-        SUM(s.total_amount) AS total_amount
-      FROM sales s
-      JOIN products p ON s.product_id = p.id
-      WHERE strftime('%m', s.created_at) = ?
-        AND strftime('%Y', s.created_at) = ?
-        AND s.status = 'active'
-      GROUP BY s.product_id, s.unit_price
-      ORDER BY total_amount DESC
-    ''', [monthStr, year.toString()]);
+    final result = await db.rawQuery('''
+    SELECT 
+      p.name AS product_name,
+      p.unit AS unit,
+      SUM(s.quantity) AS total_quantity,
+      SUM(s.total_amount) AS total_amount
+    FROM sales s
+    JOIN products p ON s.product_id = p.id
+    WHERE strftime('%m', s.created_at) = ?
+      AND strftime('%Y', s.created_at) = ?
+      AND s.status = 'active'
+    GROUP BY s.product_id
+  ''', [monthStr, year.toString()]);
+
+    return result;
   }
 
   /// 2. تقرير تفصيلي لشفت معين

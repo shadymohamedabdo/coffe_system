@@ -31,7 +31,7 @@ class DatabaseHelper {
     return await databaseFactoryFfi.openDatabase(
       path,
       options: OpenDatabaseOptions(
-        version: 9, // التأكد من الإصدار 9 لدعم الموظفين
+        version: 10, // رفع الإصدار إلى 10 لإضافة جدول المشتريات
         onCreate: _createDB,
         onUpgrade: _onUpgrade,
         onConfigure: _onConfigure,
@@ -43,7 +43,6 @@ class DatabaseHelper {
     await db.execute('PRAGMA foreign_keys = ON');
   }
 
-  // --- الميثود اللي كانت ناقصة عندك ---
   Future<int?> getOpenShiftId() async {
     final db = await database;
     final List<Map<String, dynamic>> maps = await db.query(
@@ -70,6 +69,7 @@ class DatabaseHelper {
         created_at TEXT
       )
     ''');
+
     await db.execute('''
       CREATE TABLE products (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -80,6 +80,7 @@ class DatabaseHelper {
         cost_price REAL DEFAULT 0
       )
     ''');
+
     await db.execute('''
       CREATE TABLE shifts (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -91,6 +92,7 @@ class DatabaseHelper {
         end_time TEXT
       )
     ''');
+
     await db.execute('''
       CREATE TABLE sales (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -107,26 +109,56 @@ class DatabaseHelper {
         FOREIGN KEY (shift_id) REFERENCES shifts(id)
       )
     ''');
+
+    // ✅ جدول المشتريات الجديد
+    await db.execute('''
+      CREATE TABLE purchases (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        product_name TEXT,
+        quantity REAL,
+        unit TEXT,
+        cost_per_unit REAL,
+        month INTEGER,
+        year INTEGER
+      )
+    ''');
+
     await _createDefaultAdmin(db);
   }
 
-// داخل ملف database_helper.dart
-
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    // تحديث النسخة 9 لإضافة عمود اسم المستخدم
+    // ترقية من إصدار أقل من 9 (إضافة user_name)
     if (oldVersion < 9) {
       try {
         await db.execute("ALTER TABLE shifts ADD COLUMN user_name TEXT");
       } catch (e) {
-        print("Column already exists");
+        print("Column user_name already exists");
       }
-
-      // 🔥 إضافة مهمة: تنظيف الأوقات التالفة القديمة (اختياري لكنه يحل مشكلة --:--)
-      // السطر ده هيحول أي وقت مش مفهوم لنص فارغ عشان الـ UI ما يضربش
       await db.execute("UPDATE shifts SET start_time = NULL WHERE start_time NOT LIKE '202%'");
       await db.execute("UPDATE shifts SET end_time = NULL WHERE end_time NOT LIKE '202%' AND is_open = 0");
     }
+
+    // ترقية من إصدار أقل من 10 (إضافة جدول purchases)
+    if (oldVersion < 10) {
+      try {
+        await db.execute('''
+          CREATE TABLE purchases (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            product_name TEXT,
+            quantity REAL,
+            unit TEXT,
+            cost_per_unit REAL,
+            month INTEGER,
+            year INTEGER
+          )
+        ''');
+        print("✅ تم إنشاء جدول purchases بنجاح");
+      } catch (e) {
+        print("خطأ في إنشاء جدول purchases: $e");
+      }
+    }
   }
+
   Future<void> _createDefaultAdmin(Database db) async {
     final result = await db.query('users', where: 'username = ?', whereArgs: ['shady']);
     if (result.isEmpty) {
