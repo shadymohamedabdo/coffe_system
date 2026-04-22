@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import 'package:untitled1/data/controllers/shift_controller.dart';
 
+import 'controllers/dashboard_controller.dart';
 import 'controllers/employees_controller.dart';
 import 'controllers/login_controller.dart';
 import 'controllers/products_controller.dart';
@@ -30,5 +31,11 @@ class ShiftBinding extends Bindings {
   @override
   void dependencies() {
     Get.lazyPut<ShiftsController>(() => ShiftsController());
+  }
+}
+class DashboardBinding extends Bindings {
+  @override
+  void dependencies() {
+    Get.lazyPut<DashboardController>(() => DashboardController());
   }
 }

@@ -108,7 +108,7 @@ class HomeScreen extends GetView<HomeController> {
                       label: 'الاحصائيات',
                       icon: Icons.dashboard_rounded,
                       color: Colors.blueAccent[100]!,
-                      onTap: () => Get.to(() => const DashboardScreen()),
+                      onTap: () => Get.to(() => const DashboardScreen(),binding: DashboardBinding()),
                     ),
                     _buildMenuItem(
                       label: 'إدارة الشيفتات',
