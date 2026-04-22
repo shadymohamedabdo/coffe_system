@@ -1,8 +1,6 @@
 import 'dart:async';
 import 'package:path/path.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
-import 'package:intl/intl.dart';
-import 'package:get/get.dart';   // أضف هذا السطر لو مش موجود
 
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
@@ -17,13 +15,8 @@ class DatabaseHelper {
   static Stream<void> get salesStream => _salesStreamController.stream;
   static Stream<void> get shiftsStream => _shiftsStreamController.stream;
 
-  static void notifySalesChanged() {
-    _salesStreamController.add(null);
-  }
-
-  static void notifyShiftsChanged() {
-    _shiftsStreamController.add(null);
-  }
+  static void notifySalesChanged() => _salesStreamController.add(null);
+  static void notifyShiftsChanged() => _shiftsStreamController.add(null);
 
   Future<Database> get database async {
     if (_db != null) return _db!;
@@ -38,7 +31,7 @@ class DatabaseHelper {
     return await databaseFactoryFfi.openDatabase(
       path,
       options: OpenDatabaseOptions(
-        version: 8,                    // تم رفع النسخة
+        version: 9, // التأكد من الإصدار 9 لدعم الموظفين
         onCreate: _createDB,
         onUpgrade: _onUpgrade,
         onConfigure: _onConfigure,
@@ -50,36 +43,7 @@ class DatabaseHelper {
     await db.execute('PRAGMA foreign_keys = ON');
   }
 
-  // --- 1. فتح شيفت جديد مع تحديث تلقائي ---
-  Future<void> startNewShift(String type) async {
-    final db = await database;
-
-    // قفل أي شفت مفتوح سابقًا
-    await db.update(
-      'shifts',
-      {
-        'is_open': 0,
-        'end_time': DateTime.now().toIso8601String(),
-      },
-      where: 'is_open = ?',
-      whereArgs: [1],
-    );
-
-    // فتح شيفت جديد
-    await db.insert('shifts', {
-      'type': type,
-      'date': DateFormat('yyyy-MM-dd').format(DateTime.now()),
-      'is_open': 1,
-      'start_time': DateTime.now().toIso8601String(),
-      'end_time': null,
-    });
-
-    // تحديث تلقائي للصفحة
-    notifyShiftsChanged();
-    notifySalesChanged();
-  }
-
-  // --- 2. جلب رقم الوردية المفتوحة حالياً ---
+  // --- الميثود اللي كانت ناقصة عندك ---
   Future<int?> getOpenShiftId() async {
     final db = await database;
     final List<Map<String, dynamic>> maps = await db.query(
@@ -93,21 +57,6 @@ class DatabaseHelper {
       return maps.first['id'] as int;
     }
     return null;
-  }
-
-  // --- 3. إضافة عملية بيع مرتبطة بالوردية الحالية ---
-  Future<int> insertSale(Map<String, dynamic> saleData) async {
-    final db = await database;
-    int? activeShiftId = await getOpenShiftId();
-    if (activeShiftId == null) {
-      throw Exception("لا توجد وردية مفتوحة حالياً لتسجيل البيع");
-    }
-    final completeData = Map<String, dynamic>.from(saleData);
-    completeData['shift_id'] = activeShiftId;
-    completeData['created_at'] = DateTime.now().toIso8601String();
-    int id = await db.insert('sales', completeData);
-    notifySalesChanged();
-    return id;
   }
 
   Future<void> _createDB(Database db, int version) async {
@@ -135,6 +84,7 @@ class DatabaseHelper {
       CREATE TABLE shifts (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         type TEXT,
+        user_name TEXT, 
         date TEXT,
         is_open INTEGER,
         start_time TEXT,
@@ -160,23 +110,23 @@ class DatabaseHelper {
     await _createDefaultAdmin(db);
   }
 
+// داخل ملف database_helper.dart
+
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 6) {
-      await db.execute("ALTER TABLE sales ADD COLUMN status TEXT DEFAULT 'active'");
-    }
-    if (oldVersion < 7) {
-      await db.execute("ALTER TABLE products ADD COLUMN cost_price REAL DEFAULT 0");
-    }
-    if (oldVersion < 8) {
-      // Reset كامل في حال الترقية (اختياري - احذر لو عندك بيانات مهمة)
-      await db.execute('DROP TABLE IF EXISTS sales');
-      await db.execute('DROP TABLE IF EXISTS shifts');
-      await db.execute('DROP TABLE IF EXISTS products');
-      await db.execute('DROP TABLE IF EXISTS users');
-      await _createDB(db, newVersion);
+    // تحديث النسخة 9 لإضافة عمود اسم المستخدم
+    if (oldVersion < 9) {
+      try {
+        await db.execute("ALTER TABLE shifts ADD COLUMN user_name TEXT");
+      } catch (e) {
+        print("Column already exists");
+      }
+
+      // 🔥 إضافة مهمة: تنظيف الأوقات التالفة القديمة (اختياري لكنه يحل مشكلة --:--)
+      // السطر ده هيحول أي وقت مش مفهوم لنص فارغ عشان الـ UI ما يضربش
+      await db.execute("UPDATE shifts SET start_time = NULL WHERE start_time NOT LIKE '202%'");
+      await db.execute("UPDATE shifts SET end_time = NULL WHERE end_time NOT LIKE '202%' AND is_open = 0");
     }
   }
-
   Future<void> _createDefaultAdmin(Database db) async {
     final result = await db.query('users', where: 'username = ?', whereArgs: ['shady']);
     if (result.isEmpty) {

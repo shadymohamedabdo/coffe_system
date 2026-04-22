@@ -114,7 +114,11 @@ class HomeScreen extends GetView<HomeController> {
                       label: 'إدارة الشيفتات',
                       icon: Icons.history_toggle_off_rounded,
                       color: Colors.redAccent[100]!,
-                      onTap: () => Get.to(() => const ShiftScreen()),
+                      // نمرر اسم المستخدم الحالي للـ ShiftScreen
+                      onTap: () => Get.to(
+                              () => ShiftScreen(currentUserName: controller.displayName),
+                          binding: ShiftBinding()
+                      ),
                     ),
                     _buildMenuItem(
                       label: 'إدارة المنتجات',
