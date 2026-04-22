@@ -1,65 +1,58 @@
+// lib/data/repositories/shifts_repository.dart
+
 import '../database_helper.dart';
 
 class ShiftsRepository {
   final dbHelper = DatabaseHelper.instance;
 
+  // تحديث هذه الميثود لاستقبال الـ limit والـ offset
+  Future<List<Map<String, dynamic>>> getAllShifts({int limit = 20, int offset = 0}) async {
+    final db = await dbHelper.database;
+
+    // تمرير الـ limit والـ offset للاستعلام
+    return await db.query(
+      'shifts',
+      orderBy: 'id DESC', // ترتيب من الأحدث للأقدم
+      limit: limit,
+      offset: offset,
+    );
+  }
+
   Future<Map<String, dynamic>?> getOpenShift() async {
     final db = await dbHelper.database;
-    final result = await db.query(
+    final List<Map<String, dynamic>> maps = await db.query(
       'shifts',
       where: 'is_open = ?',
       whereArgs: [1],
       limit: 1,
     );
-    return result.isNotEmpty ? result.first : null;
+    if (maps.isNotEmpty) return maps.first;
+    return null;
   }
 
   Future<void> openShift(String type, String userName) async {
     final db = await dbHelper.database;
-    final open = await getOpenShift();
-    if (open != null) return;
-
-    final now = DateTime.now();
-    final isoString = now.toIso8601String();
-    final dateOnly = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
-
     await db.insert('shifts', {
       'type': type,
       'user_name': userName,
-      'date': dateOnly,  // ✅ تاريخ فقط: 2026-04-22
-      'start_time': isoString,
+      'date': DateTime.now().toIso8601String(),
       'is_open': 1,
-      'end_time': null,
+      'start_time': DateTime.now().toIso8601String(),
     });
-
-    print('✅ تم فتح شيفت جديد: $type بواسطة $userName في $dateOnly');
+    DatabaseHelper.notifyShiftsChanged();
   }
-// في ملف shifts_repository.dart
+
   Future<void> closeShift(int id) async {
     final db = await dbHelper.database;
-    final now = DateTime.now().toIso8601String();
-
-    print('🔴 جاري إغلاق الشيفت ID: $id');
-    print('⏰ وقت الإغلاق: $now');
-
-    final result = await db.update(
+    await db.update(
       'shifts',
       {
         'is_open': 0,
-        'end_time': now  // تأكد من حفظ الوقت هنا
+        'end_time': DateTime.now().toIso8601String(),
       },
       where: 'id = ?',
       whereArgs: [id],
     );
-
-    print('✅ تم تحديث $result صف');
-
-    // التحقق من التحديث
-    final updated = await db.query('shifts', where: 'id = ?', whereArgs: [id]);
-    print('📊 بعد التحديث: ${updated.first}');
-  }
-  Future<List<Map<String, dynamic>>> getAllShifts() async {
-    final db = await dbHelper.database;
-    return await db.query('shifts', orderBy: 'id DESC');
+    DatabaseHelper.notifyShiftsChanged();
   }
 }
