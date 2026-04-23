@@ -92,11 +92,15 @@ class ProductsScreen extends GetView<ProductsController> {
     });
   }
 
+  // ✅ بطاقة المنتج - رمادية إذا كان الرصيد صفراً
   Widget _buildPremiumProductCard(Product p) {
+    double remaining = controller.productStock[p.id] ?? 0.0;
+    bool isAvailable = remaining > 0;
+
     final style = _getCategoryStyle(p.category);
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isAvailable ? Colors.white : Colors.grey[200],
         borderRadius: BorderRadius.circular(25),
         boxShadow: [
           BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 5))
@@ -122,9 +126,9 @@ class ProductsScreen extends GetView<ProductsController> {
                     _buildBadge(p.category, style['color']),
                     Row(
                       children: [
-                        _buildActionBtn(Icons.edit, Colors.blue, () => _showEditDialog(p)),
+                        _buildActionBtn(Icons.edit, Colors.blue, () => _showEditDialog(p), isAvailable),
                         const SizedBox(width: 8),
-                        _buildActionBtn(Icons.delete_forever, Colors.red, () => _confirmDelete(p)),
+                        _buildActionBtn(Icons.delete_forever, Colors.red, () => _confirmDelete(p), true),
                       ],
                     )
                   ],
@@ -133,8 +137,15 @@ class ProductsScreen extends GetView<ProductsController> {
                 Text(p.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     maxLines: 1, overflow: TextOverflow.ellipsis),
                 const Spacer(),
-                Text('${p.price} ج.م', style: TextStyle(fontSize: 18,
-                    fontWeight: FontWeight.w900, color: Colors.green[800])),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    if (!isAvailable)
+                      const Text('(غير متوفر)', style: TextStyle(color: Colors.red, fontSize: 12)),
+                    Text('${p.price} ج.م', style: TextStyle(fontSize: 18,
+                        fontWeight: FontWeight.w900, color: isAvailable ? Colors.green[800] : Colors.grey[600])),
+                  ],
+                ),
               ],
             ),
           )
@@ -143,18 +154,18 @@ class ProductsScreen extends GetView<ProductsController> {
     );
   }
 
-  Widget _buildActionBtn(IconData icon, Color color, VoidCallback onTap) {
+  Widget _buildActionBtn(IconData icon, Color color, VoidCallback onTap, bool enabled) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: onTap,
+        onTap: enabled ? onTap : null,
         borderRadius: BorderRadius.circular(8),
         child: Container(
           padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
+              color: color.withValues(alpha: enabled ? 0.1 : 0.05),
               borderRadius: BorderRadius.circular(8)),
-          child: Icon(icon, color: color, size: 20),
+          child: Icon(icon, color: enabled ? color : color.withOpacity(0.5), size: 20),
         ),
       ),
     );
@@ -163,10 +174,8 @@ class ProductsScreen extends GetView<ProductsController> {
   Widget _buildBadge(String text, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(8)),
-      child: Text(text, style: TextStyle(
-          color: color, fontSize: 10, fontWeight: FontWeight.bold)),
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
+      child: Text(text, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold)),
     );
   }
 
@@ -185,7 +194,7 @@ class ProductsScreen extends GetView<ProductsController> {
     );
   }
 
-  // ========== نموذج الإضافة المطور (القائمة تعرض فقط المنتجات غير المضافة) ==========
+  // ========== نموذج الإضافة الجديد (القائمة منسدلة من المشتريات) ==========
   Widget _buildCreativeSideForm() {
     return Container(
       width: 320,
@@ -199,7 +208,7 @@ class ProductsScreen extends GetView<ProductsController> {
           const Text('إضافة صنف جديد',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
           const Divider(height: 40),
-          // قائمة منسدلة للمنتجات غير المضافة
+          // قائمة منسدلة لأسماء المنتجات من المشتريات
           Obx(() {
             if (controller.availableProductNames.isEmpty) {
               return Container(

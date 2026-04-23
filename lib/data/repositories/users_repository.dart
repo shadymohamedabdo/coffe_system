@@ -3,13 +3,11 @@ import '../database_helper.dart';
 class UsersRepository {
   final dbHelper = DatabaseHelper.instance;
 
-  // جلب كل الموظفين مرتبين أبجدياً
   Future<List<Map<String, dynamic>>> getAllEmployees() async {
     final db = await dbHelper.database;
     return await db.query('users', orderBy: 'name ASC');
   }
 
-  // إضافة مستخدم جديد
   Future<void> addUser({
     required String name,
     required String username,
@@ -25,13 +23,13 @@ class UsersRepository {
     });
   }
 
-  // حذف مستخدم
-  Future<void> deleteUser(int id) async {
+  // ✅ إرجاع bool للإشارة إلى نجاح الحذف
+  Future<bool> deleteUser(int id) async {
     final db = await dbHelper.database;
-    await db.delete('users', where: 'id = ?', whereArgs: [id]);
+    final result = await db.delete('users', where: 'id = ?', whereArgs: [id]);
+    return result > 0;
   }
 
-  // تسجيل الدخول
   Future<Map<String, dynamic>?> login(String username, String password) async {
     final db = await dbHelper.database;
     final result = await db.query(

@@ -6,12 +6,10 @@ import '../repositories/users_repository.dart';
 class EmployeesController extends GetxController {
   final UsersRepository _repo = UsersRepository();
 
-  // 1. المتغيرات والملاحظات
   var employees = <Map<String, dynamic>>[].obs;
   var isLoading = true.obs;
   var searchQuery = "".obs;
 
-  // 2. الكنترولرز هنا لضمان الـ Performance والـ Memory Management
   final nameCtrl = TextEditingController();
   final userCtrl = TextEditingController();
   final passCtrl = TextEditingController();
@@ -22,7 +20,6 @@ class EmployeesController extends GetxController {
     fetchEmployees();
   }
 
-  // جلب البيانات
   Future<void> fetchEmployees() async {
     try {
       isLoading(true);
@@ -35,7 +32,6 @@ class EmployeesController extends GetxController {
     }
   }
 
-  // تصفية البحث (Computed Property)
   List<Map<String, dynamic>> get filteredList {
     if (searchQuery.isEmpty) return employees;
     return employees.where((e) {
@@ -43,22 +39,26 @@ class EmployeesController extends GetxController {
     }).toList();
   }
 
-  // الحذف (Memory Update لسرعة خرافية)
+  // ✅ دالة الحذف المعدلة (تتحقق من النجاح)
   Future<void> deleteUser(int id) async {
     try {
-      await _repo.deleteUser(id);
-      employees.removeWhere((emp) => emp['id'] == id); // تحديث الميموري فوراً
-      AppSnackbar.error('تم حذف المستخدم بنجاح');
+      final deleted = await _repo.deleteUser(id);
+      if (deleted) {
+        employees.removeWhere((emp) => emp['id'] == id);
+        AppSnackbar.success("تم حذف المستخدم بنجاح");
+      } else {
+        AppSnackbar.error("المستخدم غير موجود");
+      }
     } catch (e) {
-      AppSnackbar.error("فشل الحذف: $e");
+      AppSnackbar.error("حدث خطأ أثناء الحذف");
+      print("Error deleting user: $e");
     }
   }
 
-  // الإضافة
   Future<void> addNewUser(String name, String user, String pass, String role) async {
     try {
       await _repo.addUser(name: name, username: user, password: pass, role: role);
-      await fetchEmployees(); // تحديث القائمة بعد الإضافة
+      await fetchEmployees();
       AppSnackbar.success("تم إضافة $name بنجاح");
     } catch (e) {
       AppSnackbar.error("فشل الإضافة: $e");
@@ -67,7 +67,6 @@ class EmployeesController extends GetxController {
 
   @override
   void onClose() {
-    // تنظيف الذاكرة
     nameCtrl.dispose();
     userCtrl.dispose();
     passCtrl.dispose();

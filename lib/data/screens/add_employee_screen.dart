@@ -13,7 +13,7 @@ class AddEmployeeScreen extends GetView<EmployeesController> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.grey[50], // خلفية مريحة للعين
+      backgroundColor: Colors.grey[50],
       appBar: AppBar(
         title: const Text('إدارة فريق العمل',
             style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.2)),
@@ -34,7 +34,6 @@ class AddEmployeeScreen extends GetView<EmployeesController> {
       body: Column(
         children: [
           const SizedBox(height: 10),
-          // حقل البحث الأنيق
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
             child: Container(
@@ -60,7 +59,6 @@ class AddEmployeeScreen extends GetView<EmployeesController> {
           Expanded(
             child: Obx(() {
               if (controller.isLoading.value) return const Center(child: CircularProgressIndicator());
-
               return ListView.builder(
                 padding: const EdgeInsets.all(20),
                 itemCount: controller.filteredList.length,
@@ -77,7 +75,6 @@ class AddEmployeeScreen extends GetView<EmployeesController> {
     );
   }
 
-  // تصميم الكارت الجديد
   Widget _buildEmployeeCard(Map<String, dynamic> emp, bool isMe) {
     bool isAdmin = emp['role'] == 'admin';
     return Container(
@@ -123,21 +120,20 @@ class AddEmployeeScreen extends GetView<EmployeesController> {
           else
             IconButton(
               icon: Icon(Icons.delete_sweep_outlined, color: Colors.red[300]),
-              onPressed: () => _confirmDelete(emp['id'], controller),
+              onPressed: () => _confirmDelete(emp['id'] as int, controller),
             ),
         ],
       ),
     );
   }
 
-  // ديالوج إضافة "كاستم" أشيك بكتير
   void _showAddDialog(EmployeesController controller) {
     String role = 'employee';
     controller.nameCtrl.clear();
     controller.userCtrl.clear();
     controller.passCtrl.clear();
 
-    Get.bottomSheet( // استخدام BottomSheet بدل Dialog بيبقى مودرن أكتر في الموبايل
+    Get.bottomSheet(
       Container(
         padding: const EdgeInsets.all(25),
         decoration: const BoxDecoration(

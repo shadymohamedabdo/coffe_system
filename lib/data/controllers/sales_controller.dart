@@ -3,12 +3,17 @@ import 'package:get/get.dart';
 import '../constants.dart';
 import '../database_helper.dart';
 import '../repositories/sales_repository.dart';
+import '../repositories/purchases_repository.dart';
+import '../repositories/reports_repository.dart';
 
 class SalesController extends GetxController {
   final salesRepo = SalesRepository();
   final dbHelper = DatabaseHelper.instance;
+  final _purchasesRepo = PurchasesRepository();
+  final _reportsRepo = ReportsRepository();
 
   var products = <Map<String, dynamic>>[].obs;
+  var availableProducts = <Map<String, dynamic>>[].obs; // ✅ المنتجات المتاحة فقط
   var isLoading = true.obs;
   var isSaving = false.obs;
 
@@ -19,8 +24,8 @@ class SalesController extends GetxController {
   var amount = RxnDouble();
   var unitLabel = "وحدة".obs;
   var computedWeight = 0.0.obs;
+  var productRemainingMap = <int, double>{}.obs; // ✅ رصيد كل منتج
 
-  // Form key للتحقق من صحة الإدخال
   final formKey = GlobalKey<FormState>();
 
   @override
@@ -35,10 +40,37 @@ class SalesController extends GetxController {
       final db = await dbHelper.database;
       final result = await db.query('products');
       products.assignAll(result);
+      await _loadRemainingBalances();
+      // ✅ تصفية المنتجات المتاحة (الرصيد > 0)
+      availableProducts.assignAll(
+          products.where((p) => (productRemainingMap[p['id']] ?? 0) > 0).toList()
+      );
     } catch (e) {
       debugPrint("Error loading products: $e");
     } finally {
       isLoading(false);
+    }
+  }
+
+  Future<void> _loadRemainingBalances() async {
+    try {
+      final now = DateTime.now();
+      final purchases = await _purchasesRepo.getPurchasesForMonth(now.month, now.year);
+      final sales = await _reportsRepo.getMonthlySalesGroupedByProduct(now.month, now.year);
+
+      Map<String, double> purchasedQuantity = {};
+      for (var p in purchases) {
+        purchasedQuantity[p.productName] = (purchasedQuantity[p.productName] ?? 0) + p.quantity;
+      }
+
+      for (var product in products) {
+        double purchased = purchasedQuantity[product['name']] ?? 0;
+        double sold = sales[product['name']] ?? 0;
+        double remaining = purchased - sold;
+        productRemainingMap[product['id']] = remaining > 0 ? remaining : 0.0;
+      }
+    } catch (e) {
+      print("خطأ في حساب الأرصدة: $e");
     }
   }
 
@@ -58,16 +90,22 @@ class SalesController extends GetxController {
     }
   }
 
-  void updateProduct(int? id) {
+  Future<void> updateProduct(int? id) async {
     selectedProductId.value = id;
     if (id != null) {
       final p = products.firstWhere((p) => p['id'] == id);
       unitPrice.value = (p['price'] as num).toDouble();
-      _recalculateWeightFromAmount(); // إعادة حساب الوزن إذا كان هناك مبلغ مدخل
+      _recalculateWeightFromAmount();
+
+      // التحقق من الرصيد (في حالة اختيار منتج)
+      double remaining = productRemainingMap[id] ?? 0;
+      if (remaining <= 0) {
+        AppSnackbar.warning("هذا المنتج غير متوفر حالياً (الكمية المستوردة قد انتهت)");
+        selectedProductId.value = null;
+      }
     }
   }
 
-  // دالة موحدة لإعادة حساب الوزن من المبلغ (إن وُجد)
   void _recalculateWeightFromAmount() {
     if (unitPrice.value > 0 && amount.value != null && amount.value! > 0) {
       computedWeight.value = amount.value! / unitPrice.value;
@@ -77,7 +115,6 @@ class SalesController extends GetxController {
     }
   }
 
-  // التحقق من صحة المبلغ المدخل (أكبر من صفر)
   String? validateAmount(String? value) {
     if (value == null || value.isEmpty) return null;
     final parsed = double.tryParse(value);
@@ -101,17 +138,26 @@ class SalesController extends GetxController {
   double get currentTotal => amount.value ?? (quantity.value * unitPrice.value);
 
   Future<void> saveSale(int userId) async {
-    // التحقق من صحة النموذج قبل الحفظ
     if (!formKey.currentState!.validate()) return;
-
     if (selectedProductId.value == null) {
       AppSnackbar.warning("برجاء اختيار المنتج أولاً");
       return;
     }
 
-    isSaving(true);
-    double finalQuantity = (amount.value != null) ? (amount.value! / unitPrice.value) : quantity.value;
+    // التحقق من الرصيد مرة أخرى قبل الحفظ
+    double remaining = productRemainingMap[selectedProductId.value] ?? 0;
+    if (remaining <= 0) {
+      AppSnackbar.warning("المنتج غير متوفر (الرصيد صفر)");
+      return;
+    }
 
+    double finalQuantity = (amount.value != null) ? (amount.value! / unitPrice.value) : quantity.value;
+    if (finalQuantity > remaining) {
+      AppSnackbar.warning("الكمية المطلوبة تتجاوز الرصيد المتوفر (${remaining.toStringAsFixed(2)})");
+      return;
+    }
+
+    isSaving(true);
     try {
       int? activeShiftId = await dbHelper.getOpenShiftId();
       if (activeShiftId == null) {
@@ -131,6 +177,7 @@ class SalesController extends GetxController {
       AppSnackbar.success("تم تسجيل العملية بنجاح");
       resetFields();
       DatabaseHelper.notifySalesChanged();
+      await loadProducts(); // ✅ إعادة تحميل المنتجات والقائمة المتاحة
     } catch (e) {
       AppSnackbar.error("حدث خطأ أثناء الحفظ");
     } finally {
@@ -147,5 +194,10 @@ class SalesController extends GetxController {
     } else {
       quantity.value = 1.0;
     }
+  }
+
+  @override
+  void onClose() {
+    super.onClose();
   }
 }

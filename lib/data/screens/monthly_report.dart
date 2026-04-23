@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:collection/collection.dart';
+import '../constants.dart';
 import '../controllers/monthly_report_controller.dart';
 
 class MonthlyReportScreen extends GetView<MonthlyReportController> {
@@ -16,10 +17,9 @@ class MonthlyReportScreen extends GetView<MonthlyReportController> {
         foregroundColor: Colors.white,
         centerTitle: true,
         actions: [
-          // ✅ زر إضافة المشتريات (موجود هنا)
           IconButton(
             icon: const Icon(Icons.add_shopping_cart),
-            onPressed: () => controller.showAddPurchaseForm.toggle(),
+            onPressed: () => controller.showAddPurchaseForm.value = !controller.showAddPurchaseForm.value,
           ),
           _buildFilterHeader(),
         ],
@@ -384,7 +384,7 @@ class MonthlyReportScreen extends GetView<MonthlyReportController> {
   );
 }
 
-// ✅ Widget منفصل لإدارة الجدول والـ Pagination (StatefulWidget)
+// ✅ Widget منفصل لإدارة الجدول والـ Pagination
 class _PaginatedTable extends StatefulWidget {
   const _PaginatedTable();
 
@@ -432,11 +432,11 @@ class _PaginatedTableState extends State<_PaginatedTable> {
               (states) => index.isEven ? Colors.grey[50] : Colors.white,
         ),
         cells: [
-          DataCell(Text(row['product_name'] ?? '')),                                 // 1- المنتج
-          DataCell(Text('${row['sold_quantity']} ${row['unit'] ?? ''}')),          // 2- كمية المبيعات
-          DataCell(Text('${(row['sales_amount'] as num).toStringAsFixed(2)} ج.م')), // 3- قيمة المبيعات
-          DataCell(Text('${row['purchased_quantity']} ${row['unit'] ?? ''}')),      // 4- كمية المشتريات
-          DataCell(Text('${(row['purchase_cost'] as num).toStringAsFixed(2)} ج.م')),// 5- تكلفة المشتريات
+          DataCell(Text(row['product_name'] ?? '')),
+          DataCell(Text('${row['sold_quantity']} ${row['unit'] ?? ''}')),
+          DataCell(Text('${(row['sales_amount'] as num).toStringAsFixed(2)} ج.م')),
+          DataCell(Text('${row['purchased_quantity']} ${row['unit'] ?? ''}')),
+          DataCell(Text('${(row['purchase_cost'] as num).toStringAsFixed(2)} ج.م')),
           DataCell(
             Text(
               '${profit.toStringAsFixed(2)} ج.م',
@@ -540,9 +540,10 @@ class _PaginatedTableState extends State<_PaginatedTable> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(row['product_name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    Expanded(
+                      child: Text(row['product_name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    ),
                     IconButton(
                       icon: const Icon(Icons.delete, color: Colors.red, size: 20),
                       onPressed: () => _showDeleteDialog(controller, row['product_name']),
@@ -584,12 +585,22 @@ class _PaginatedTableState extends State<_PaginatedTable> {
   }
 
   void _showDeleteDialog(MonthlyReportController controller, String productName) {
+    // البحث عن أول عملية شراء تطابق الاسم (يمكن أن يكون هناك عدة)
     final purchase = controller.purchases.firstWhereOrNull((p) => p.productName == productName);
-    if (purchase == null) return;
+    if (purchase == null) {
+      AppSnackbar.error("المنتج غير موجود في المشتريات");
+      return;
+    }
+    if (purchase.id == null) {
+      AppSnackbar.error("معرف المنتج غير صالح (id = null)");
+      return;
+    }
+    _confirmDelete(controller, purchase.id!, purchase.productName);
+  }
 
+  void _confirmDelete(MonthlyReportController controller, int id, String productName) {
     Get.dialog(
       AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
         title: const Text('تأكيد الحذف'),
         content: Text('هل أنت متأكد من حذف "$productName"؟'),
         actions: [
@@ -599,13 +610,13 @@ class _PaginatedTableState extends State<_PaginatedTable> {
           ),
           TextButton(
             onPressed: () {
-              controller.deletePurchase(purchase.id!, productName);
+              controller.deletePurchase(id, productName);
               Get.back();
             },
             child: const Text('حذف', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
+      barrierDismissible: false, // منع إغلاق الـ Dialog بالضغط خارجها
     );
-  }
-}
+  }}

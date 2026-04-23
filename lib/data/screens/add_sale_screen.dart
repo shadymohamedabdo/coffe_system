@@ -90,7 +90,7 @@ class AddSaleScreen extends GetView<SalesController> {
                             label: 'المنتج',
                             value: controller.selectedProductId.value,
                             icon: Icons.coffee_rounded,
-                            items: controller.products
+                            items: controller.availableProducts // ✅ التعديل هنا
                                 .where((p) => p['category'] == controller.selectedCategory.value)
                                 .map((p) => DropdownMenuItem<int>(
                               value: p['id'],
@@ -253,7 +253,7 @@ class AddSaleScreen extends GetView<SalesController> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(color: Colors.green.withValues(alpha: 0.3), blurRadius: 10, offset: const Offset(0, 4)),
-        ]
+        ],
       ),
       child: Column(
         children: [
@@ -285,8 +285,7 @@ class AddSaleScreen extends GetView<SalesController> {
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.brown[800],
           foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-          elevation: 4,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),          elevation: 4,
         ),
       )),
     );

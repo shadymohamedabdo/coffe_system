@@ -4,10 +4,12 @@ import 'package:untitled1/data/constants.dart';
 import '../database_helper.dart';
 import '../models/product_model.dart';
 import '../repositories/purchases_repository.dart';
+import '../repositories/reports_repository.dart'; // أضف هذا
 
 class ProductsController extends GetxController {
   final dbHelper = DatabaseHelper.instance;
   final _purchasesRepo = PurchasesRepository();
+  final _reportsRepo = ReportsRepository(); // ✅
 
   final nameCtrl = TextEditingController();
   final priceCtrl = TextEditingController();
@@ -20,9 +22,11 @@ class ProductsController extends GetxController {
   var allProducts = <Product>[].obs;
   var filteredProducts = <Product>[].obs;
 
-  // قائمة أسماء المنتجات التي يمكن إضافتها (غير موجودة في المنتجات)
   var availableProductNames = <String>[].obs;
   var selectedProductName = ''.obs;
+
+  // ✅ رصيد المنتج (المتبقي من المشتريات - المبيعات)
+  var productStock = <int, double>{}.obs;
 
   @override
   void onInit() {
@@ -30,16 +34,40 @@ class ProductsController extends GetxController {
     loadProducts();
   }
 
-  // تحميل المنتجات ثم تحديث القائمة المتاحة
   Future<void> loadProducts() async {
     final db = await dbHelper.database;
     final maps = await db.query('products');
     allProducts.assignAll(maps.map((e) => Product.fromMap(e)).toList());
     applyFilters(searchCtrl.text);
     await loadAvailableProductNames();
+    await loadProductBalances(); // ✅ حساب الأرصدة
   }
 
-  // جلب أسماء المشتريات التي لم تضاف بعد كمنتجات
+  // ✅ حساب الكمية المتبقية لكل منتج (لنفس الشهر الحالي)
+  Future<void> loadProductBalances() async {
+    try {
+      final now = DateTime.now();
+      final purchases = await _purchasesRepo.getPurchasesForMonth(now.month, now.year);
+      final sales = await _reportsRepo.getMonthlySalesGroupedByProduct(now.month, now.year);
+
+      // تجميع المشتريات حسب اسم المنتج
+      Map<String, double> purchasedQuantity = {};
+      for (var p in purchases) {
+        purchasedQuantity[p.productName] = (purchasedQuantity[p.productName] ?? 0) + p.quantity;
+      }
+
+      // حساب الرصيد لكل منتج
+      for (var product in allProducts) {
+        double purchased = purchasedQuantity[product.name] ?? 0;
+        double sold = sales[product.name] ?? 0;
+        double remaining = purchased - sold;
+        productStock[product.id!] = remaining > 0 ? remaining : 0.0;
+      }
+    } catch (e) {
+      print("خطأ في حساب الأرصدة: $e");
+    }
+  }
+
   Future<void> loadAvailableProductNames() async {
     try {
       final purchases = await _purchasesRepo.getAllPurchases();
@@ -98,15 +126,13 @@ class ProductsController extends GetxController {
     );
     await insertProduct(newProduct);
     clearForm();
-    await loadProducts();
+    await loadProducts(); // يعيد تحميل الأرصدة أيضاً
     Get.snackbar("تم", "تمت إضافة المنتج بنجاح", backgroundColor: Colors.green[100]);
   }
 
-  // ✅ دالة الإدراج المعدلة (لا تستخدم setter id)
   Future<void> insertProduct(Product product) async {
     final db = await dbHelper.database;
     final id = await db.insert('products', product.toMap());
-    // إنشاء كائن جديد بالمعرف المُعاد
     final newProduct = Product(
       id: id,
       name: product.name,
@@ -116,6 +142,7 @@ class ProductsController extends GetxController {
     );
     allProducts.add(newProduct);
     applyFilters(searchCtrl.text);
+    await loadProductBalances(); // تحديث الرصيد
   }
 
   Future<void> deleteProduct(int id) async {
@@ -124,6 +151,7 @@ class ProductsController extends GetxController {
     allProducts.removeWhere((p) => p.id == id);
     applyFilters(searchCtrl.text);
     await loadAvailableProductNames();
+    await loadProductBalances();
     AppSnackbar.error('تم حذف المنتج');
   }
 
