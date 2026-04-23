@@ -7,6 +7,7 @@ import 'controllers/employees_controller.dart';
 import 'controllers/login_controller.dart';
 import 'controllers/products_controller.dart';
 import 'controllers/profit_controller.dart';
+import 'controllers/sales_controller.dart';
 import 'controllers/shift_report_controller.dart';
 
 class LoginBinding extends Bindings {
@@ -58,5 +59,11 @@ class ShiftReportBinding extends Bindings {
   @override
   void dependencies() {
     Get.lazyPut<ShiftReportController>(() => ShiftReportController());
+  }
+}
+class AddSaleBinding extends Bindings {
+  @override
+  void dependencies() {
+    Get.lazyPut<SalesController>(() => SalesController());
   }
 }

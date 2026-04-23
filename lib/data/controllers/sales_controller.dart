@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../constants.dart';
 import '../database_helper.dart';
 import '../repositories/sales_repository.dart';
 
@@ -7,7 +8,6 @@ class SalesController extends GetxController {
   final salesRepo = SalesRepository();
   final dbHelper = DatabaseHelper.instance;
 
-  // متغيرات الحالة
   var products = <Map<String, dynamic>>[].obs;
   var isLoading = true.obs;
   var isSaving = false.obs;
@@ -18,6 +18,10 @@ class SalesController extends GetxController {
   var unitPrice = 0.0.obs;
   var amount = RxnDouble();
   var unitLabel = "وحدة".obs;
+  var computedWeight = 0.0.obs;
+
+  // Form key للتحقق من صحة الإدخال
+  final formKey = GlobalKey<FormState>();
 
   @override
   void onInit() {
@@ -32,27 +36,24 @@ class SalesController extends GetxController {
       final result = await db.query('products');
       products.assignAll(result);
     } catch (e) {
-      print("Error loading products: $e");
+      debugPrint("Error loading products: $e");
     } finally {
       isLoading(false);
     }
   }
 
-  // التعديل هنا: استخدام المسميات العربية لتطابق شاشة إضافة المنتجات
   void onCategoryChanged(String? val) {
     selectedCategory.value = val;
     selectedProductId.value = null;
     amount.value = null;
     unitPrice.value = 0.0;
+    computedWeight.value = 0.0;
 
     if (val == 'بن') {
       unitLabel.value = "كيلو";
       quantity.value = 0.125;
-    } else if (val == 'مشروب') {
-      unitLabel.value = "كوب";
-      quantity.value = 1.0;
     } else {
-      unitLabel.value = "قطعة/وحدة";
+      unitLabel.value = val == 'مشروب' ? "كوب" : "قطعة";
       quantity.value = 1.0;
     }
   }
@@ -60,35 +61,61 @@ class SalesController extends GetxController {
   void updateProduct(int? id) {
     selectedProductId.value = id;
     if (id != null) {
-      // البحث عن المنتج في القائمة المحملة لجلب سعره
       final p = products.firstWhere((p) => p['id'] == id);
       unitPrice.value = (p['price'] as num).toDouble();
+      _recalculateWeightFromAmount(); // إعادة حساب الوزن إذا كان هناك مبلغ مدخل
+    }
+  }
+
+  // دالة موحدة لإعادة حساب الوزن من المبلغ (إن وُجد)
+  void _recalculateWeightFromAmount() {
+    if (unitPrice.value > 0 && amount.value != null && amount.value! > 0) {
+      computedWeight.value = amount.value! / unitPrice.value;
+      quantity.value = computedWeight.value;
+    } else {
+      computedWeight.value = 0.0;
+    }
+  }
+
+  // التحقق من صحة المبلغ المدخل (أكبر من صفر)
+  String? validateAmount(String? value) {
+    if (value == null || value.isEmpty) return null;
+    final parsed = double.tryParse(value);
+    if (parsed == null) return "أدخل رقماً صحيحاً";
+    if (parsed <= 0) return "المبلغ يجب أن يكون أكبر من صفر";
+    return null;
+  }
+
+  void updateAmountAndWeight(String value) {
+    final amountValue = double.tryParse(value);
+    if (amountValue != null && amountValue > 0 && unitPrice.value > 0) {
+      amount.value = amountValue;
+      computedWeight.value = amountValue / unitPrice.value;
+      quantity.value = computedWeight.value;
+    } else {
+      amount.value = null;
+      computedWeight.value = 0.0;
     }
   }
 
   double get currentTotal => amount.value ?? (quantity.value * unitPrice.value);
 
   Future<void> saveSale(int userId) async {
+    // التحقق من صحة النموذج قبل الحفظ
+    if (!formKey.currentState!.validate()) return;
+
     if (selectedProductId.value == null) {
-      Get.snackbar("تنبيه", "برجاء اختيار المنتج أولاً", backgroundColor: Colors.orange[100]);
+      AppSnackbar.warning("برجاء اختيار المنتج أولاً");
       return;
     }
 
     isSaving(true);
-
     double finalQuantity = (amount.value != null) ? (amount.value! / unitPrice.value) : quantity.value;
 
     try {
-      // جلب ID الوردية المفتوحة
       int? activeShiftId = await dbHelper.getOpenShiftId();
-
       if (activeShiftId == null) {
-        Get.snackbar(
-            "تنبيه",
-            "لا توجد وردية مفتوحة حالياً. برجاء فتح وردية جديدة أولاً",
-            backgroundColor: Colors.red[100],
-            colorText: Colors.black
-        );
+        AppSnackbar.error("لا توجد وردية مفتوحة حالياً");
         return;
       }
 
@@ -101,12 +128,11 @@ class SalesController extends GetxController {
         totalAmount: currentTotal,
       );
 
-      Get.snackbar("نجاح", "تم تسجيل العملية في الوردية رقم $activeShiftId", backgroundColor: Colors.green[100]);
+      AppSnackbar.success("تم تسجيل العملية بنجاح");
       resetFields();
       DatabaseHelper.notifySalesChanged();
-
     } catch (e) {
-      Get.snackbar("خطأ", "حدث خطأ أثناء الحفظ: $e");
+      AppSnackbar.error("حدث خطأ أثناء الحفظ");
     } finally {
       isSaving(false);
     }
@@ -115,6 +141,7 @@ class SalesController extends GetxController {
   void resetFields() {
     selectedProductId.value = null;
     amount.value = null;
+    computedWeight.value = 0.0;
     if (selectedCategory.value == 'بن') {
       quantity.value = 0.125;
     } else {

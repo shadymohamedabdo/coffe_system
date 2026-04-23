@@ -82,7 +82,7 @@ class HomeScreen extends GetView<HomeController> {
                     label: 'تسجيل بيع',
                     icon: Icons.add_shopping_cart_rounded,
                     color: Colors.greenAccent[700]!,
-                    onTap: () => Get.to(() => AddSaleScreen(currentUser: controller.currentUser)),
+                    onTap: () => Get.to(() => AddSaleScreen(currentUser: controller.currentUser),binding: AddSaleBinding()),
                     isMain: true,
                   ),
                   _buildMenuItem(
