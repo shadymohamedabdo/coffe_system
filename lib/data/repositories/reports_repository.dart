@@ -25,6 +25,36 @@ class ReportsRepository {
 
     return result;
   }
+  // في ReportsRepository
+  Future<List<Map<String, dynamic>>> getShiftReportPaginated(
+      int shiftId, {
+        int limit = 20,
+        int offset = 0,
+      }) async {
+    final db = await dbHelper.database;
+    final result = await db.rawQuery('''
+    SELECT 
+      s.id,
+      p.name AS product_name,
+      s.quantity,
+      p.unit,
+      s.quantity * s.unit_price AS total_amount,
+      u.name AS employee_name,
+      s.status,
+      s.created_at
+    FROM sales s
+    JOIN products p ON s.product_id = p.id
+    LEFT JOIN users u ON s.user_id = u.id
+    WHERE s.shift_id = ? AND s.status != 'deleted'
+    ORDER BY s.created_at DESC
+    LIMIT ? OFFSET ?
+  ''', [shiftId, limit, offset]);
+
+    return result;
+  }
+
+// هل تريد الاحتفاظ بالدالة القديمة getShiftReport؟
+// يمكنك إما تعديلها لتستخدم الـ Pagination أيضاً، أو إبقاءها كما هي لاستخدامات أخرى.
 
   /// 2. تقرير تفصيلي لشفت معين
   /// يعرض كل عملية بيع تمت في الشفت مع اسم الموظف والمنتج وحالة العملية

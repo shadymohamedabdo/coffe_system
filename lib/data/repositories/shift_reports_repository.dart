@@ -3,6 +3,7 @@ import '../database_helper.dart';
 class ShiftReportRepository {
   final dbHelper = DatabaseHelper.instance;
 
+
   // 📌 جلب تقرير شيفت
   Future<List<Map<String, dynamic>>> getShiftReport(int shiftId) async {
     final db = await dbHelper.database;

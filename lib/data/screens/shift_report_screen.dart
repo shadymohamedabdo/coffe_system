@@ -3,27 +3,26 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import '../controllers/shift_report_controller.dart';
 
-class ShiftReportScreen extends StatelessWidget {
+class ShiftReportScreen extends GetView<ShiftReportController> {
   final Map<String, dynamic> currentUser;
+
   const ShiftReportScreen({super.key, required this.currentUser});
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.put(ShiftReportController());
     bool isAdmin = currentUser['role'] == 'admin';
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F5F2),
+      backgroundColor: const Color(0xFFFBF9F7),
       appBar: AppBar(
-        title: const Text('تقرير الوردية', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('تقرير الوردية', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
         backgroundColor: Colors.brown[800],
         foregroundColor: Colors.white,
         centerTitle: true,
         elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.sync),
-            tooltip: 'تحديث البيانات',
+            icon: const Icon(Icons.sync_rounded),
             onPressed: () => controller.loadAllShifts(),
           ),
         ],
@@ -35,52 +34,34 @@ class ShiftReportScreen extends StatelessWidget {
 
         return Column(
           children: [
-            // ===== الشيفتات =====
-            Container(
-              height: 110,
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: controller.shifts.length,
-                itemBuilder: (context, index) {
-                  final s = controller.shifts[index];
-                  final isSelected = controller.selectedShiftId.value == s['id'];
-                  return _buildShiftChip(s, isSelected, controller);
-                },
-              ),
-            ),
-
-            // ===== الإحصائيات =====
+            _buildShiftsHeader(),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Row(
                 children: [
-                  _buildStatCard("إجمالي البيع", "${controller.totalSum.toStringAsFixed(1)} ج", Colors.green, Icons.monetization_on),
-                  const SizedBox(width: 10),
-                  _buildStatCard("عدد الطلبات", "${controller.ordersCount}", Colors.blue, Icons.shopping_basket),
+                  _buildStatCard("إجمالي المبيعات", "${controller.totalSum.value.toStringAsFixed(2)} ج", Colors.green, Icons.payments_outlined),
+                  const SizedBox(width: 12),
+                  _buildStatCard("الطلبات الناجحة", "${controller.ordersCount.value}", Colors.blue, Icons.receipt_long_outlined),
                 ],
               ),
             ),
-
-            const SizedBox(height: 15),
-
             const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20),
+              padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
               child: Row(
                 children: [
-                  Icon(Icons.list_alt, size: 18, color: Colors.brown),
+                  Icon(Icons.list_alt_rounded, size: 20, color: Colors.brown),
                   SizedBox(width: 8),
-                  Text("تفاصيل العمليات", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  Text("سجل عمليات الوردية", style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Colors.black87)),
                 ],
               ),
             ),
-
-            // ===== قائمة العمليات =====
             Expanded(
-              child: controller.isLoading.value
-                  ? const Center(child: CircularProgressIndicator())
-                  : _buildTransactionList(controller, isAdmin),
+              child: RefreshIndicator(
+                onRefresh: () => controller.loadReport(reset: true),
+                child: controller.reportData.isEmpty && !controller.isLoadingMore.value
+                    ? const Center(child: Text("لا توجد عمليات لهذه الوردية"))
+                    : _buildTransactionList(isAdmin),
+              ),
             ),
           ],
         );
@@ -88,160 +69,129 @@ class ShiftReportScreen extends StatelessWidget {
     );
   }
 
-  // ===== شكل الشيفت =====
-  Widget _buildShiftChip(Map s, bool isSelected, ShiftReportController controller) {
-    print("SHIFT DATA: $s"); // 👈 Debug
+  Widget _buildShiftsHeader() {
+    return Container(
+      height: 100,
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: controller.shifts.length,
+        itemBuilder: (context, index) {
+          final s = controller.shifts[index];
+          final isSelected = controller.selectedShiftId.value == s['id'];
+          return _buildShiftChip(s, isSelected);
+        },
+      ),
+    );
+  }
 
-    String typeFromDb = s['type']?.toString() ?? "";
-
-    DateTime? dt;
-
-    try {
-      if (s['start_time'] != null && s['start_time'].toString().isNotEmpty) {
-        dt = DateTime.parse(s['start_time']).toLocal();
-      } else if (s['date'] != null) {
-        dt = DateTime.parse(s['date']);
-      }
-    } catch (e) {
-      print("DATE ERROR: $e");
-    }
-
-    String displayDate = dt != null
-        ? DateFormat('yyyy/MM/dd').format(dt)
-        : "—";
-
-    String displayTime = dt != null
-        ? DateFormat('hh:mm a').format(dt)
-        : "";
+  Widget _buildShiftChip(Map s, bool isSelected) {
+    DateTime? dt = s['start_time'] != null ? DateTime.tryParse(s['start_time'].toString())?.toLocal() : null;
+    String displayDate = dt != null ? DateFormat('MM/dd').format(dt) : "—";
+    bool isMorning = s['type'] == "morning";
 
     return GestureDetector(
-      onTap: () {
-        controller.selectedShiftId.value = s['id'];
-        controller.loadReport();
-      },
+      onTap: () => controller.selectShift(s['id']),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        margin: const EdgeInsets.only(right: 12),
+        duration: const Duration(milliseconds: 200),
+        margin: const EdgeInsets.only(right: 12, top: 4, bottom: 4),
         padding: const EdgeInsets.all(12),
-        width: 140,
+        width: 120,
         decoration: BoxDecoration(
-          color: isSelected ? Colors.brown : Colors.white,
-          borderRadius: BorderRadius.circular(15),
-          border: Border.all(color: Colors.grey.shade300),
+          color: isSelected ? Colors.brown[700] : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2))],
+          border: Border.all(color: isSelected ? Colors.brown : Colors.grey.shade200),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(
-              typeFromDb == "morning" ? "☀️ صباحي" : "🌙 مسائي",
-              style: TextStyle(
-                color: isSelected ? Colors.white : Colors.black,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-
-            const SizedBox(height: 6),
-
-            Text(
-              displayDate,
-              style: TextStyle(
-                color: isSelected ? Colors.white : Colors.black87,
-                fontSize: 12,
-              ),
-            ),
-
-            if (displayTime.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Text(
-                displayTime,
-                style: TextStyle(
-                  color: isSelected ? Colors.white : Colors.black54,
-                  fontSize: 11,
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }  Widget _buildStatCard(String title, String value, Color color, IconData icon) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10)],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: color, size: 20),
-            const SizedBox(height: 10),
-            Text(title, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-            Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(isMorning ? "☀️ صباحي" : "🌙 مسائي",
+                style: TextStyle(color: isSelected ? Colors.white : Colors.brown[900], fontWeight: FontWeight.bold, fontSize: 13)),
+            const SizedBox(height: 4),
+            Text(displayDate, style: TextStyle(color: isSelected ? Colors.white70 : Colors.black54, fontSize: 11)),
           ],
         ),
       ),
     );
   }
 
-  // ===== قائمة العمليات =====
-  Widget _buildTransactionList(ShiftReportController controller, bool isAdmin) {
-    if (controller.reportData.isEmpty) return const Center(child: Text('لا توجد مبيعات'));
+  Widget _buildStatCard(String title, String value, Color color, IconData icon) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: color.withOpacity(0.1)),
+          boxShadow: [BoxShadow(color: color.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4))],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            CircleAvatar(radius: 14, backgroundColor: color.withOpacity(0.1), child: Icon(icon, color: color, size: 16)),
+            const SizedBox(height: 12),
+            Text(title, style: const TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w500)),
+            const SizedBox(height: 2),
+            FittedBox(child: Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900))),
+          ],
+        ),
+      ),
+    );
+  }
 
+  Widget _buildTransactionList(bool isAdmin) {
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: controller.reportData.length,
+      controller: controller.scrollController, // ✅ من الـ Controller
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+      itemCount: controller.reportData.length + (controller.hasMoreData.value ? 1 : 0),
       itemBuilder: (context, index) {
+        if (index == controller.reportData.length) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 16),
+            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+          );
+        }
         final row = controller.reportData[index];
         bool isCancelled = row['status'] == 'cancelled';
 
-        num quantity = row['quantity'] ?? 0;
-        String unit = row['unit'] ?? '';
-        String qtyStr = (quantity % 1 == 0) ? quantity.toInt().toString() : quantity.toString();
-
         return Container(
-          margin: const EdgeInsets.only(bottom: 10),
+          margin: const EdgeInsets.only(bottom: 12),
           decoration: BoxDecoration(
-            color: isCancelled ? Colors.red[50] : Colors.white,
-            borderRadius: BorderRadius.circular(12),
+            color: isCancelled ? Colors.red.withOpacity(0.03) : Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: isCancelled ? Colors.red.withOpacity(0.1) : Colors.grey.shade100),
           ),
           child: ListTile(
-            title: Text(row['product_name'] ?? "", style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Row(
-                children: [
-                  Text("👤 ${row['employee_name'] ?? ''}", style: TextStyle(fontSize: 11, color: Colors.grey[600])),
-                  const Spacer(),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(color: Colors.orange[50], borderRadius: BorderRadius.circular(5)),
-                    child: Text(
-                      "الكمية: $qtyStr $unit",
-                      style: TextStyle(fontSize: 11, color: Colors.orange[900], fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  const Spacer(),
-                ],
-              ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            title: Text(row['product_name'] ?? "منتج غير معروف",
+                style: TextStyle(fontWeight: FontWeight.bold, decoration: isCancelled ? TextDecoration.lineThrough : null)),
+            subtitle: Row(
+              children: [
+                Text("👤 ${row['employee_name'] ?? ''}", style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(color: Colors.brown[50], borderRadius: BorderRadius.circular(6)),
+                  child: Text("x${row['quantity']} ${row['unit'] ?? ''}",
+                      style: TextStyle(fontSize: 10, color: Colors.brown[900], fontWeight: FontWeight.bold)),
+                ),
+              ],
             ),
             trailing: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text("${row['total_amount']} ج", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                Text("${row['total_amount']} ج",
+                    style: TextStyle(fontWeight: FontWeight.w900, color: isCancelled ? Colors.grey : Colors.black, fontSize: 15)),
                 if (isAdmin)
-                  GestureDetector(
+                  InkWell(
                     onTap: () => controller.toggleStatus(row['id'], row['status']),
-                    child: Text(
-                      isCancelled ? "استعادة" : "إلغاء",
-                      style: TextStyle(
-                        color: isCancelled ? Colors.blue : Colors.red,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(isCancelled ? "إستعادة" : "إلغاء العملية",
+                          style: TextStyle(color: isCancelled ? Colors.blue : Colors.red[700], fontSize: 11, fontWeight: FontWeight.bold)),
                     ),
                   ),
               ],

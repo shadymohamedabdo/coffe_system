@@ -89,7 +89,7 @@ class HomeScreen extends GetView<HomeController> {
                     label: 'تقرير الشيفت',
                     icon: Icons.receipt_long_rounded,
                     color: Colors.orangeAccent[400]!,
-                    onTap: () => Get.to(() => ShiftReportScreen(currentUser: controller.currentUser)),
+                    onTap: () => Get.to(() => ShiftReportScreen(currentUser: controller.currentUser),binding: ShiftReportBinding()),
                   ),
                   if (controller.isAdmin) ...[
                     _buildMenuItem(

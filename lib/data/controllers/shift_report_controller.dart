@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../repositories/reports_repository.dart';
 import '../database_helper.dart';
@@ -11,40 +12,131 @@ class ShiftReportController extends GetxController {
   var isLoading = true.obs;
   var selectedShiftId = RxnInt();
 
+  // إحصائيات
+  var totalSum = 0.0.obs;
+  var ordersCount = 0.obs;
+  var cancelledSum = 0.0.obs;
+
+  // Pagination
+  var currentPage = 1.obs;
+  var hasMoreData = true.obs;
+  var isLoadingMore = false.obs;
+  final int pageSize = 20;
+
+  // ScrollController يُدار داخل الـ Controller
+  final ScrollController scrollController = ScrollController();
+
   @override
   void onInit() {
     super.onInit();
+    scrollController.addListener(() {
+      if (scrollController.position.pixels >=
+          scrollController.position.maxScrollExtent - 200) {
+        loadMoreTransactions();
+      }
+    });
     loadAllShifts();
+  }
+
+  @override
+  void onClose() {
+    scrollController.dispose();
+    super.onClose();
   }
 
   Future<void> loadAllShifts() async {
     isLoading(true);
-    final db = await dbHelper.database;
-    final data = await db.query('shifts', orderBy: 'id DESC');
-    shifts.assignAll(data);
-    if (data.isNotEmpty) {
-      selectedShiftId.value = data.first['id'] as int?;
-      await loadReport();
+    try {
+      final db = await dbHelper.database;
+      final data = await db.query('shifts', orderBy: 'id DESC');
+      shifts.assignAll(data);
+      if (data.isNotEmpty) {
+        selectedShiftId.value = data.first['id'] as int?;
+        await loadReport(reset: true);
+      }
+    } finally {
+      isLoading(false);
     }
-    isLoading(false);
   }
 
-  Future<void> loadReport() async {
+  Future<void> loadReport({bool reset = true}) async {
     if (selectedShiftId.value == null) return;
-    isLoading(true);
-    final data = await _repo.getShiftReport(selectedShiftId.value!);
-    reportData.assignAll(data);
-    isLoading(false);
+
+    if (reset) {
+      currentPage.value = 1;
+      hasMoreData.value = true;
+      reportData.clear();
+    }
+
+    if (reset) {
+      isLoading(true);
+    } else {
+      isLoadingMore(true);
+    }
+
+    try {
+      final data = await _repo.getShiftReportPaginated(
+        selectedShiftId.value!,
+        limit: pageSize,
+        offset: (currentPage.value - 1) * pageSize,
+      );
+
+      if (data.isEmpty) {
+        hasMoreData.value = false;
+      } else {
+        if (reset) {
+          reportData.assignAll(data);
+        } else {
+          reportData.addAll(data);
+        }
+        if (data.length < pageSize) {
+          hasMoreData.value = false;
+        }
+      }
+      _calculateStatistics();
+    } finally {
+      if (reset) {
+        isLoading(false);
+      } else {
+        isLoadingMore(false);
+      }
+    }
   }
 
-  // إحصائيات ذكية للشاشة
-  double get totalSum => reportData.where((e) => e['status'] == 'active').fold(0.0, (sum, item) => sum + (item['total_amount'] as num).toDouble());
-  int get ordersCount => reportData.where((e) => e['status'] == 'active').length;
-  double get cancelledSum => reportData.where((e) => e['status'] == 'cancelled').fold(0.0, (sum, item) => sum + (item['total_amount'] as num).toDouble());
+  Future<void> loadMoreTransactions() async {
+    if (!hasMoreData.value || isLoadingMore.value) return;
+    currentPage.value++;
+    await loadReport(reset: false);
+  }
+
+  void selectShift(int shiftId) {
+    selectedShiftId.value = shiftId;
+    loadReport(reset: true);
+  }
+
+  void _calculateStatistics() {
+    double activeSum = 0.0;
+    double cancelled = 0.0;
+    int count = 0;
+
+    for (var item in reportData) {
+      double amount = (item['total_amount'] as num).toDouble();
+      if (item['status'] == 'active') {
+        activeSum += amount;
+        count++;
+      } else {
+        cancelled += amount;
+      }
+    }
+
+    totalSum.value = activeSum;
+    ordersCount.value = count;
+    cancelledSum.value = cancelled;
+  }
 
   Future<void> toggleStatus(int id, String currentStatus) async {
     String nextStatus = (currentStatus == 'active') ? 'cancelled' : 'active';
     await _repo.updateSaleStatus(id, nextStatus);
-    await loadReport();
+    await loadReport(reset: true);
   }
 }
