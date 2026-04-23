@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:collection/collection.dart';
 import '../controllers/monthly_report_controller.dart';
 
 class MonthlyReportScreen extends GetView<MonthlyReportController> {
@@ -14,7 +15,14 @@ class MonthlyReportScreen extends GetView<MonthlyReportController> {
         backgroundColor: Colors.brown[700],
         foregroundColor: Colors.white,
         centerTitle: true,
-        actions: [_buildFilterHeader()],
+        actions: [
+          // ✅ زر إضافة المشتريات (موجود هنا)
+          IconButton(
+            icon: const Icon(Icons.add_shopping_cart),
+            onPressed: () => controller.showAddPurchaseForm.toggle(),
+          ),
+          _buildFilterHeader(),
+        ],
       ),
       body: Obx(() {
         if (controller.isLoading.value) return _buildLoading();
@@ -424,11 +432,11 @@ class _PaginatedTableState extends State<_PaginatedTable> {
               (states) => index.isEven ? Colors.grey[50] : Colors.white,
         ),
         cells: [
-          DataCell(Text(row['product_name'])),
-          DataCell(Text('${row['sold_quantity']} ${row['unit'] ?? ''}')),
-          DataCell(Text('${(row['sales_amount'] as num).toStringAsFixed(2)} ج.م')),
-          DataCell(Text('${row['purchased_quantity']} ${row['unit'] ?? ''}')),
-          DataCell(Text('${(row['purchase_cost'] as num).toStringAsFixed(2)} ج.م')),
+          DataCell(Text(row['product_name'] ?? '')),                                 // 1- المنتج
+          DataCell(Text('${row['sold_quantity']} ${row['unit'] ?? ''}')),          // 2- كمية المبيعات
+          DataCell(Text('${(row['sales_amount'] as num).toStringAsFixed(2)} ج.م')), // 3- قيمة المبيعات
+          DataCell(Text('${row['purchased_quantity']} ${row['unit'] ?? ''}')),      // 4- كمية المشتريات
+          DataCell(Text('${(row['purchase_cost'] as num).toStringAsFixed(2)} ج.م')),// 5- تكلفة المشتريات
           DataCell(
             Text(
               '${profit.toStringAsFixed(2)} ج.م',
