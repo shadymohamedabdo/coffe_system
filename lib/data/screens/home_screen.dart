@@ -102,7 +102,7 @@ class HomeScreen extends GetView<HomeController> {
                       label: 'حاسبة الأرباح',
                       icon: Icons.calculate_rounded,
                       color: Colors.lightBlueAccent,
-                      onTap: () => Get.to(() => const ProfitCalculatorScreen()),
+                      onTap: () => Get.to(() => const ProfitCalculatorScreen(),binding: CalculatorBinding()),
                     ),
                     _buildMenuItem(
                       label: 'الاحصائيات',

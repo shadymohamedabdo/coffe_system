@@ -1,67 +1,102 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../repositories/reports_repository.dart';
+import '../repositories/purchases_repository.dart';
 
 class ProfitController extends GetxController {
-  final repo = ReportsRepository();
+  final ReportsRepository _repo = ReportsRepository();
+  final PurchasesRepository _purchasesRepo = PurchasesRepository();
 
-  // حقول الإدخال
+  // TextEditingControllers
   final rentCtrl = TextEditingController();
   final salariesCtrl = TextEditingController();
   final electricityCtrl = TextEditingController();
   final waterCtrl = TextEditingController();
   final otherCtrl = TextEditingController();
 
-  // متغيرات الحالة (Reactive)
-  var totalSales = 0.0.obs;
-  var netProfit = 0.0.obs;
-  var totalExpenses = 0.0.obs;
-  var isLoading = true.obs;
-  var isCalculated = false.obs;
+  // FocusNodes
+  final rentFocus = FocusNode();
+  final salariesFocus = FocusNode();
+  final electricityFocus = FocusNode();
+  final waterFocus = FocusNode();
+  final otherFocus = FocusNode();
+
+  // Reactive variables
+  final totalSales = 0.0.obs;
+  final totalPurchases = 0.0.obs;
+  final grossProfit = 0.0.obs;
+  final totalExpenses = 0.0.obs;
+  final netProfit = 0.0.obs;
+  final isLoading = true.obs;
+  final isRefreshing = false.obs;
+  final isCalculated = false.obs;
 
   @override
   void onInit() {
     super.onInit();
-    loadMonthlySales();
+    loadMonthlyData();
   }
 
-  Future<void> loadMonthlySales() async {
+  Future<void> loadMonthlyData() async {
     isLoading(true);
     try {
       final now = DateTime.now();
-      // ✅ التصحيح: استخدام معاملات موضعية بدلاً من المسماة
-      final data = await repo.getMonthlyReport(now.month, now.year);
+      final salesData = await _repo.getMonthlyReport(now.month, now.year);
+      totalSales.value = salesData.fold(0.0, (s, i) => s + (i['total_amount'] as num));
 
-      final sales = data.fold<double>(
-        0.0,
-            (sum, item) => sum + (item['total_amount'] as num).toDouble(),
-      );
+      final purchases = await _purchasesRepo.getPurchasesForMonth(now.month, now.year);
+      totalPurchases.value = purchases.fold(0.0, (s, p) => s + p.totalCost);
 
-      totalSales.value = sales;
+      grossProfit.value = totalSales.value - totalPurchases.value;
+      _recalculate();
     } catch (e) {
-      Get.snackbar("خطأ", "فشل تحميل المبيعات: $e", backgroundColor: Colors.red[100]);
+      _showError('فشل تحميل البيانات: $e');
     } finally {
       isLoading(false);
     }
   }
 
-  void calculate() {
-    double parse(TextEditingController controller) {
-      String text = controller.text.replaceAll(',', '').trim();
-      return double.tryParse(text) ?? 0.0;
-    }
-
-    totalExpenses.value = parse(rentCtrl) +
-        parse(salariesCtrl) +
-        parse(electricityCtrl) +
-        parse(waterCtrl) +
-        parse(otherCtrl);
-
-    netProfit.value = totalSales.value - totalExpenses.value;
-    isCalculated(true);
+  Future<void> refreshData() async {
+    isRefreshing(true);
+    await loadMonthlyData();
+    isRefreshing(false);
   }
 
-  void resetCalculation() {
+  void _updateExpenses() {
+    double parse(TextEditingController c) => double.tryParse(c.text.trim()) ?? 0.0;
+    totalExpenses.value = parse(rentCtrl) + parse(salariesCtrl) + parse(electricityCtrl) + parse(waterCtrl) + parse(otherCtrl);
+  }
+
+  void _recalculate() {
+    _updateExpenses();
+    netProfit.value = grossProfit.value - totalExpenses.value;
+  }
+
+  void calculate() {
+    _recalculate();
+    isCalculated(true);
+    Get.focusScope?.unfocus();
+  }
+
+  void resetExpenses() {
+    rentCtrl.clear();
+    salariesCtrl.clear();
+    electricityCtrl.clear();
+    waterCtrl.clear();
+    otherCtrl.clear();
+    _recalculate();
     isCalculated(false);
+  }
+
+  void _showError(String msg) {
+    Get.snackbar('خطأ', msg, backgroundColor: Colors.red.shade100, colorText: Colors.red.shade900);
+  }
+
+  @override
+  void onClose() {
+    // Dispose all controllers and focus nodes
+    [rentCtrl, salariesCtrl, electricityCtrl, waterCtrl, otherCtrl].forEach((c) => c.dispose());
+    [rentFocus, salariesFocus, electricityFocus, waterFocus, otherFocus].forEach((f) => f.dispose());
+    super.onClose();
   }
 }
