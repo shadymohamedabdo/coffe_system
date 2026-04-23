@@ -22,7 +22,7 @@ class ProductsScreen extends GetView<ProductsController> {
           bottom: TabBar(
             onTap: (index) {
               List<String> types = ['الكل', 'بن', 'مشروب', 'أكل سريع / أخرى'];
-              controller.updateTabFilter(types[index]); // استخدام الميثود الجديدة
+              controller.updateTabFilter(types[index]);
             },
             isScrollable: true,
             indicatorColor: Colors.orangeAccent,
@@ -144,7 +144,7 @@ class ProductsScreen extends GetView<ProductsController> {
   }
 
   Widget _buildActionBtn(IconData icon, Color color, VoidCallback onTap) {
-    return Material( // لإضافة تأثير الضغط وتسهيل اللمس
+    return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
@@ -185,6 +185,7 @@ class ProductsScreen extends GetView<ProductsController> {
     );
   }
 
+  // ========== نموذج الإضافة المطور (القائمة تعرض فقط المنتجات غير المضافة) ==========
   Widget _buildCreativeSideForm() {
     return Container(
       width: 320,
@@ -198,7 +199,57 @@ class ProductsScreen extends GetView<ProductsController> {
           const Text('إضافة صنف جديد',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
           const Divider(height: 40),
-          _buildField(controller.nameCtrl, 'اسم المنتج', Icons.inventory_2),
+          // قائمة منسدلة للمنتجات غير المضافة
+          Obx(() {
+            if (controller.availableProductNames.isEmpty) {
+              return Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: const Text(
+                  '✅ جميع المنتجات المستوردة تمت إضافتها بالفعل',
+                  style: TextStyle(color: Colors.green, fontSize: 13),
+                  textAlign: TextAlign.center,
+                ),
+              );
+            }
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('اختر المنتج (من المشتريات غير المضافة)',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey.shade300),
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: controller.selectedProductName.value,
+                      isExpanded: true,
+                      hint: const Text('-- اختر منتج --'),
+                      items: controller.availableProductNames.map((name) {
+                        return DropdownMenuItem(
+                          value: name,
+                          child: Text(name, style: const TextStyle(fontSize: 14)),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        if (value != null) {
+                          controller.selectedProductName.value = value;
+                          controller.nameCtrl.text = value;
+                        }
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            );
+          }),
           const SizedBox(height: 15),
           _buildField(controller.priceCtrl, 'سعر البيع', Icons.payments, isNumber: true),
           const SizedBox(height: 20),
@@ -212,7 +263,8 @@ class ProductsScreen extends GetView<ProductsController> {
                 minimumSize: const Size(double.infinity, 55),
                 backgroundColor: Colors.brown[800],
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))),
-            child: const Text('إضافة للمخزن', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            child: const Text('إضافة للمخزن',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           )
         ],
       ),
