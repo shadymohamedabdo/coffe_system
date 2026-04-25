@@ -1,5 +1,6 @@
 import 'package:get/get.dart';
 import '../screens/login_screen.dart';
+import 'login_controller.dart';
 
 class HomeController extends GetxController {
   // استقبال بيانات المستخدم اللي جاية من صفحة اللوجن
@@ -16,7 +17,15 @@ class HomeController extends GetxController {
   String get displayName => currentUser['name'] ?? currentUser['username'] ?? 'المستخدم';
 
   void logout() {
-    // الخروج ومسح كل الصفحات السابقة من الـ Stack
+    // 1. الوصول للـ LoginController ومسح التكست
+    // استبدل LoginController بالاسم الحقيقي عندك
+    if (Get.isRegistered<LoginController>()) {
+      final loginCtrl = Get.find<LoginController>();
+      loginCtrl.usernameCtrl.clear();    // امسح حقل الايميل
+      loginCtrl.passwordCtrl.clear(); // امسح حقل الباسورد
+    }
+
+    // 2. الخروج لصفحة اللوجين
     Get.offAll(() => const LoginScreen());
   }
 }

@@ -91,6 +91,16 @@ class HomeScreen extends GetView<HomeController> {
                     color: Colors.orangeAccent[400]!,
                     onTap: () => Get.to(() => ShiftReportScreen(currentUser: controller.currentUser),binding: ShiftReportBinding()),
                   ),
+                  _buildMenuItem(
+                    label: 'إدارة الشيفتات',
+                    icon: Icons.history_toggle_off_rounded,
+                    color: Colors.redAccent[100]!,
+                    // نمرر اسم المستخدم الحالي للـ ShiftScreen
+                    onTap: () => Get.to(
+                            () => ShiftScreen(currentUserName: controller.displayName),
+                        binding: ShiftBinding()
+                    ),
+                  ),
                   if (controller.isAdmin) ...[
                     _buildMenuItem(
                       label: 'التقرير الشهري',
@@ -110,16 +120,7 @@ class HomeScreen extends GetView<HomeController> {
                       color: Colors.blueAccent[100]!,
                       onTap: () => Get.to(() => const DashboardScreen(),binding: DashboardBinding()),
                     ),
-                    _buildMenuItem(
-                      label: 'إدارة الشيفتات',
-                      icon: Icons.history_toggle_off_rounded,
-                      color: Colors.redAccent[100]!,
-                      // نمرر اسم المستخدم الحالي للـ ShiftScreen
-                      onTap: () => Get.to(
-                              () => ShiftScreen(currentUserName: controller.displayName),
-                          binding: ShiftBinding()
-                      ),
-                    ),
+
                     _buildMenuItem(
                       label: 'إدارة المنتجات',
                       icon: Icons.coffee_rounded,

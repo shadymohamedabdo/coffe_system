@@ -64,7 +64,7 @@ class ProductsController extends GetxController {
         productStock[product.id!] = remaining > 0 ? remaining : 0.0;
       }
     } catch (e) {
-      print("خطأ في حساب الأرصدة: $e");
+      AppSnackbar.error("خطأ في حساب : $e");
     }
   }
 
@@ -83,7 +83,7 @@ class ProductsController extends GetxController {
         nameCtrl.clear();
       }
     } catch (e) {
-      print("خطأ في تحميل أسماء المشتريات: $e");
+      AppSnackbar.error("خطأ في تحميل أسماء المشتريات: $e");
     }
   }
 
@@ -110,12 +110,11 @@ class ProductsController extends GetxController {
 
   Future<void> addProduct() async {
     if (selectedProductName.value.isEmpty) {
-      Get.snackbar("خطأ", "يرجى اختيار منتج من القائمة", backgroundColor: Colors.red[100]);
-      return;
+      AppSnackbar.error('يرجى اختيار منتج من القائمة');
     }
     final price = double.tryParse(priceCtrl.text);
     if (price == null || price <= 0) {
-      Get.snackbar("خطأ", "سعر غير صحيح", backgroundColor: Colors.red[100]);
+      AppSnackbar.error('سعر غير صحيح');
       return;
     }
     final newProduct = Product(
@@ -127,7 +126,7 @@ class ProductsController extends GetxController {
     await insertProduct(newProduct);
     clearForm();
     await loadProducts(); // يعيد تحميل الأرصدة أيضاً
-    Get.snackbar("تم", "تمت إضافة المنتج بنجاح", backgroundColor: Colors.green[100]);
+    AppSnackbar.success('تمت إضافة المنتج بنجاح');
   }
 
   Future<void> insertProduct(Product product) async {
@@ -146,16 +145,28 @@ class ProductsController extends GetxController {
   }
 
   Future<void> deleteProduct(int id) async {
-    final db = await dbHelper.database;
-    await db.delete('products', where: 'id = ?', whereArgs: [id]);
-    allProducts.removeWhere((p) => p.id == id);
-    applyFilters(searchCtrl.text);
-    await loadAvailableProductNames();
-    await loadProductBalances();
-    AppSnackbar.error('تم حذف المنتج');
-  }
+    print("جاري محاولة حذف المنتج ذو الرقم: $id"); // للتدقيق
+    try {
+      final db = await dbHelper.database;
+      // تنفيذ الحذف ومعرفة عدد الصفوف المتأثرة
+      int deletedRows = await db.delete('products', where: 'id = ?', whereArgs: [id]);
 
-  Future<void> updatePrice(int id, double newPrice) async {
+      print("عدد الصفوف التي تم حذفها فعلياً: $deletedRows");
+
+      if (deletedRows > 0) {
+        allProducts.removeWhere((p) => p.id == id);
+        applyFilters(searchCtrl.text);
+        await loadAvailableProductNames();
+        await loadProductBalances();
+        AppSnackbar.success('تم الحذف بنجاح');
+      } else {
+        AppSnackbar.error('فشل الحذف: الرقم $id غير موجود في قاعدة البيانات');
+      }
+    } catch (e) {
+      print("خطأ برمي: $e");
+      AppSnackbar.error("حدث خطأ تقني أثناء الحذف");
+    }
+  }  Future<void> updatePrice(int id, double newPrice) async {
     final db = await dbHelper.database;
     await db.update('products', {'price': newPrice}, where: 'id = ?', whereArgs: [id]);
     int index = allProducts.indexWhere((p) => p.id == id);

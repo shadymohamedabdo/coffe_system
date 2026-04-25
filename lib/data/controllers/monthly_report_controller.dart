@@ -218,11 +218,6 @@ class MonthlyReportController extends GetxController {
   }
 
   Future<void> deletePurchase(int id, String productName) async {
-    if (id == null) {
-      AppSnackbar.error("معرف المنتج غير صالح");
-      return;
-    }
-
     try {
       final deleted = await _purchasesRepo.deletePurchase(id);
       if (deleted) {
