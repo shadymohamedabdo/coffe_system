@@ -3,17 +3,17 @@ import '../database_helper.dart';
 class SalesRepository {
   final dbHelper = DatabaseHelper.instance;
 
-  // ===== إضافة عملية بيع =====
-// داخل كلاس SalesRepository في ملف sales_repository.dart
-
+  // =========================================
+  // 🔴 إضافة عملية بيع جديدة داخل قاعدة البيانات
+  // =========================================
   Future<void> addSale({
     required int shiftId,
     required int userId,
     required int productId,
     required double quantity,
     required double unitPrice,
-    required double totalAmount, // ✅ السطر ده هو اللي ناقصك
-    String status = 'active',
+    required double totalAmount, // إجمالي قيمة البيع (quantity * unitPrice)
+    String status = 'active', // حالة البيع (active / cancelled)
     String? createdAt,
   }) async {
     final db = await dbHelper.database;
@@ -24,15 +24,18 @@ class SalesRepository {
       'product_id': productId,
       'quantity': quantity,
       'unit_price': unitPrice,
-      'total_amount': totalAmount, // ✅ استخدام القيمة الممرة
+      'total_amount': totalAmount,
       'status': status,
       'created_at': createdAt ?? DateTime.now().toIso8601String(),
     });
 
+    // تنبيه باقي أجزاء التطبيق إن فيه تغيير في المبيعات
     DatabaseHelper.notifySalesChanged();
   }
 
-  // ===== تحديث حالة البيع =====
+  // =========================================
+  // 🔵 تحديث حالة عملية بيع (active / cancelled)
+  // =========================================
   Future<void> updateSaleStatus(int saleId, String newStatus) async {
     final db = await dbHelper.database;
 
@@ -43,10 +46,13 @@ class SalesRepository {
       whereArgs: [saleId],
     );
 
+    // تنبيه التغيير
     DatabaseHelper.notifySalesChanged();
   }
 
-  // ===== جلب مبيعات شيفت (محسنة) =====
+  // =========================================
+  // 🟢 جلب مبيعات شيفت معين + اسم المنتج
+  // =========================================
   Future<List<Map<String, dynamic>>> getSalesByShift(int shiftId) async {
     final db = await dbHelper.database;
 
@@ -61,7 +67,9 @@ class SalesRepository {
     ''', [shiftId]);
   }
 
-  // ===== جلب كل المبيعات =====
+  // =========================================
+  // 🟡 جلب كل المبيعات في النظام
+  // =========================================
   Future<List<Map<String, dynamic>>> getAllSales() async {
     final db = await dbHelper.database;
 

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
-import '../controllers/shift_controller.dart';
+import '../controllers/shift_manage_controller.dart';
 import '../models/shift_model.dart';
 
 class ShiftScreen extends GetView<ShiftsController> {

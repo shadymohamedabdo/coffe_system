@@ -5,13 +5,10 @@ import 'data/binding.dart';
 import 'data/screens/login_screen.dart';
 
 Future<void> main() async {
-  // 1. لازم ده يكون أول سطر لضمان عمل أي دوال خارجية
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 2. تهيئة الـ ffi للويندوز (لازم قبل getDatabasesPath)
   sqfliteFfiInit();
   databaseFactory = databaseFactoryFfi;
-  // في main.dart أو قبل التنقل
 
 
 

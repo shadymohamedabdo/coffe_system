@@ -1,6 +1,6 @@
 import 'package:get/get.dart';
 import 'package:untitled1/data/controllers/monthly_report_controller.dart';
-import 'package:untitled1/data/controllers/shift_controller.dart';
+import 'package:untitled1/data/controllers/shift_manage_controller.dart';
 import 'controllers/dashboard_controller.dart';
 import 'controllers/employees_controller.dart';
 import 'controllers/home_controller.dart';
