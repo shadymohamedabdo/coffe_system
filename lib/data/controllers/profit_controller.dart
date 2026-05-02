@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../constants.dart';
 import '../repositories/reports_repository.dart';
 import '../repositories/purchases_repository.dart';
 
@@ -50,7 +51,7 @@ class ProfitController extends GetxController {
       grossProfit.value = totalSales.value - totalPurchases.value;
       _recalculate();
     } catch (e) {
-      _showError('فشل تحميل البيانات: $e');
+      AppSnackbar.error('فشل تحميل البيانات: $e');
     } finally {
       isLoading(false);
     }
@@ -88,15 +89,16 @@ class ProfitController extends GetxController {
     isCalculated(false);
   }
 
-  void _showError(String msg) {
-    Get.snackbar('خطأ', msg, backgroundColor: Colors.red.shade100, colorText: Colors.red.shade900);
-  }
 
   @override
   void onClose() {
     // Dispose all controllers and focus nodes
-    [rentCtrl, salariesCtrl, electricityCtrl, waterCtrl, otherCtrl].forEach((c) => c.dispose());
-    [rentFocus, salariesFocus, electricityFocus, waterFocus, otherFocus].forEach((f) => f.dispose());
+    for (var c in [rentCtrl, salariesCtrl, electricityCtrl, waterCtrl, otherCtrl]) {
+      c.dispose();
+    }
+    for (var f in [rentFocus, salariesFocus, electricityFocus, waterFocus, otherFocus]) {
+      f.dispose();
+    }
     super.onClose();
   }
 }

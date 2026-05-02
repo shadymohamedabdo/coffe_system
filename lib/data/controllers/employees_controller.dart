@@ -24,6 +24,7 @@ class EmployeesController extends GetxController {
     try {
       isLoading(true);
       final data = await _repo.getAllEmployees();
+      // assignAll = replace old data with new data
       employees.assignAll(data);
     } catch (e) {
       AppSnackbar.error("فشل تحميل البيانات: $e");
@@ -39,22 +40,14 @@ class EmployeesController extends GetxController {
     }).toList();
   }
 
-  // ✅ دالة الحذف المعدلة (تتحقق من النجاح)
   Future<void> deleteUser(int id) async {
     try {
-      final deleted = await _repo.deleteUser(id);
-      if (deleted) {
-        employees.removeWhere((emp) => emp['id'] == id);
-        AppSnackbar.success("تم حذف المستخدم بنجاح");
-      } else {
-        AppSnackbar.error("المستخدم غير موجود");
-      }
+      employees.assignAll(await _repo.deleteUser(id));
+      AppSnackbar.success("تم الحذف بنجاح");
     } catch (e) {
       AppSnackbar.error("حدث خطأ أثناء الحذف");
-      print("Error deleting user: $e");
     }
   }
-
   Future<void> addNewUser(String name, String user, String pass, String role) async {
     try {
       await _repo.addUser(name: name, username: user, password: pass, role: role);

@@ -11,6 +11,7 @@ class LoginScreen extends GetView<LoginController> {
       backgroundColor: Colors.brown[50],
       body: Center(
         child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
           child: SizedBox(
             width: 400,
             child: Card(

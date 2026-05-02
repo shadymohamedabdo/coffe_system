@@ -9,7 +9,7 @@ import '../repositories/reports_repository.dart'; // أضف هذا
 class ProductsController extends GetxController {
   final dbHelper = DatabaseHelper.instance;
   final _purchasesRepo = PurchasesRepository();
-  final _reportsRepo = ReportsRepository(); // ✅
+  final _reportsRepo = ReportsRepository(); //
 
   final nameCtrl = TextEditingController();
   final priceCtrl = TextEditingController();
@@ -21,28 +21,44 @@ class ProductsController extends GetxController {
 
   var allProducts = <Product>[].obs;
   var filteredProducts = <Product>[].obs;
-
+// prevent repeat products
   var availableProductNames = <String>[].obs;
   var selectedProductName = ''.obs;
 
   // ✅ رصيد المنتج (المتبقي من المشتريات - المبيعات)
   var productStock = <int, double>{}.obs;
-
   @override
   void onInit() {
     super.onInit();
     loadProducts();
   }
+// داخل الـ Controller
+  final double lowStockThreshold = 3.0; // حد التنبيه
 
-  Future<void> loadProducts() async {
-    final db = await dbHelper.database;
-    final maps = await db.query('products');
-    allProducts.assignAll(maps.map((e) => Product.fromMap(e)).toList());
-    applyFilters(searchCtrl.text);
-    await loadAvailableProductNames();
-    await loadProductBalances(); // ✅ حساب الأرصدة
+// دالة لمعرفة حالة المخزن
+  String getStockStatus(int productId) {
+    double remaining = productStock[productId] ?? 0.0;
+    if (remaining <= 0) return 'out';      // خلص
+    if (remaining <= lowStockThreshold) return 'low'; // قرب يخلص
+    return 'good'; // متوفر
   }
+  Future<void> loadProducts() async {
+    try {
+      final db = await dbHelper.database;
+      final maps = await db.query('products');
 
+      allProducts.assignAll(
+        maps.map((e) => Product.fromMap(e)).toList(),
+      );
+
+      applyFilters(searchCtrl.text);
+      await loadAvailableProductNames();
+      await loadProductBalances();
+
+    } catch (e) {
+      AppSnackbar.error("خطأ في تحميل المنتجات");
+    }
+  }
   // ✅ حساب الكمية المتبقية لكل منتج (لنفس الشهر الحالي)
   Future<void> loadProductBalances() async {
     try {
@@ -111,6 +127,7 @@ class ProductsController extends GetxController {
   Future<void> addProduct() async {
     if (selectedProductName.value.isEmpty) {
       AppSnackbar.error('يرجى اختيار منتج من القائمة');
+      return; // مهم جدا
     }
     final price = double.tryParse(priceCtrl.text);
     if (price == null || price <= 0) {
@@ -125,7 +142,6 @@ class ProductsController extends GetxController {
     );
     await insertProduct(newProduct);
     clearForm();
-    await loadProducts(); // يعيد تحميل الأرصدة أيضاً
     AppSnackbar.success('تمت إضافة المنتج بنجاح');
   }
 
@@ -145,14 +161,10 @@ class ProductsController extends GetxController {
   }
 
   Future<void> deleteProduct(int id) async {
-    print("جاري محاولة حذف المنتج ذو الرقم: $id"); // للتدقيق
     try {
       final db = await dbHelper.database;
       // تنفيذ الحذف ومعرفة عدد الصفوف المتأثرة
       int deletedRows = await db.delete('products', where: 'id = ?', whereArgs: [id]);
-
-      print("عدد الصفوف التي تم حذفها فعلياً: $deletedRows");
-
       if (deletedRows > 0) {
         allProducts.removeWhere((p) => p.id == id);
         applyFilters(searchCtrl.text);
@@ -163,10 +175,10 @@ class ProductsController extends GetxController {
         AppSnackbar.error('فشل الحذف: الرقم $id غير موجود في قاعدة البيانات');
       }
     } catch (e) {
-      print("خطأ برمي: $e");
       AppSnackbar.error("حدث خطأ تقني أثناء الحذف");
     }
-  }  Future<void> updatePrice(int id, double newPrice) async {
+  }
+  Future<void> updatePrice(int id, double newPrice) async {
     final db = await dbHelper.database;
     await db.update('products', {'price': newPrice}, where: 'id = ?', whereArgs: [id]);
     int index = allProducts.indexWhere((p) => p.id == id);
@@ -186,6 +198,7 @@ class ProductsController extends GetxController {
 
   void clearForm() {
     priceCtrl.clear();
+
     if (availableProductNames.isNotEmpty) {
       selectedProductName.value = availableProductNames.first;
       nameCtrl.text = selectedProductName.value;
@@ -193,9 +206,8 @@ class ProductsController extends GetxController {
       selectedProductName.value = '';
       nameCtrl.clear();
     }
-    selectedCategory.value = 'بن';
+    changeCategory('بن');
   }
-
   @override
   void onClose() {
     nameCtrl.dispose();

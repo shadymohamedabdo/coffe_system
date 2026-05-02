@@ -25,7 +25,6 @@ class CoffeePOSApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return GetMaterialApp(
       initialBinding: LoginBinding(),
-      title: 'Coffee POS',
       theme: ThemeData(
         primarySwatch: Colors.brown,
         useMaterial3: true,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../constants.dart';
 import '../controllers/employees_controller.dart';
 
 class AddEmployeeScreen extends GetView<EmployeesController> {
@@ -11,7 +12,6 @@ class AddEmployeeScreen extends GetView<EmployeesController> {
     if (currentUser['role'] != 'admin') {
       return const Scaffold(body: Center(child: Text('غير مصرح لك بالدخول')));
     }
-
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
@@ -126,71 +126,116 @@ class AddEmployeeScreen extends GetView<EmployeesController> {
       ),
     );
   }
-
   void _showAddDialog(EmployeesController controller) {
     String role = 'employee';
     controller.nameCtrl.clear();
     controller.userCtrl.clear();
     controller.passCtrl.clear();
-
-    Get.bottomSheet(
-      Container(
-        padding: const EdgeInsets.all(25),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(width: 50, height: 5, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(10))),
-              const SizedBox(height: 20),
-              const Text('إضافة موظف جديد', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 20),
-              _buildPopupTextField(controller.nameCtrl, 'الاسم بالكامل', Icons.person_outline),
-              _buildPopupTextField(controller.userCtrl, 'اسم المستخدم', Icons.alternate_email),
-              _buildPopupTextField(controller.passCtrl, 'كلمة المرور', Icons.lock_outline, isPass: true),
-              const SizedBox(height: 20),
-              DropdownButtonFormField<String>(
-                initialValue: role,
-                items: const [
-                  DropdownMenuItem(value: 'employee', child: Text('باريستا (موظف)')),
-                  DropdownMenuItem(value: 'admin', child: Text('مدير (أدمن)')),
-                ],
-                onChanged: (v) => role = v!,
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: Colors.grey[50],
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                ),
-              ),
-              const SizedBox(height: 30),
-              SizedBox(
-                width: double.infinity,
-                height: 55,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.brown[700],
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+    Get.dialog(
+      Center(
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            width: 400,
+            padding: const EdgeInsets.all(25),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'إضافة موظف جديد',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
-                  onPressed: () {
-                    if (controller.nameCtrl.text.isNotEmpty) {
-                      controller.addNewUser(controller.nameCtrl.text, controller.userCtrl.text, controller.passCtrl.text, role);
-                      Get.back();
-                    }
-                  },
-                  child: const Text('تأكيد الحفظ', style: TextStyle(color: Colors.white, fontSize: 16)),
-                ),
+                  const SizedBox(height: 20),
+                  _buildPopupTextField(
+                    controller.nameCtrl,
+                    'الاسم بالكامل',
+                    Icons.person_outline,
+                  ),
+
+                  _buildPopupTextField(
+                    controller.userCtrl,
+                    'اسم المستخدم',
+                    Icons.alternate_email,
+                  ),
+
+                  _buildPopupTextField(
+                    controller.passCtrl,
+                    'كلمة المرور',
+                    Icons.lock_outline,
+                    isPass: true,
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  DropdownButtonFormField<String>(
+                    initialValue: role,
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'employee',
+                        child: Text('باريستا (موظف)'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'admin',
+                        child: Text('مدير (أدمن)'),
+                      ),
+                    ],
+                    onChanged: (v) => role = v!,
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: Colors.grey[50],
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 25),
+
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.brown[700],
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                      ),
+                      onPressed: () {
+                        final name = controller.nameCtrl.text.trim();
+                        final username = controller.userCtrl.text.trim();
+                        final password = controller.passCtrl.text.trim();
+
+                        if (name.isEmpty || username.isEmpty || password.isEmpty) {
+                          AppSnackbar.error(
+                            "من فضلك اكمل جميع البيانات المطلوبة",
+                          );
+                          return;
+                        }
+
+                        controller.addNewUser(name, username, password, role);
+                        Get.back();
+                      },                      child: const Text(
+                        'تأكيد الحفظ',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
-      isScrollControlled: true,
+      barrierDismissible: true, // يقفل لما تضغط بره
     );
   }
-
   Widget _buildPopupTextField(TextEditingController ctrl, String hint, IconData icon, {bool isPass = false}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 15),
@@ -207,7 +252,6 @@ class AddEmployeeScreen extends GetView<EmployeesController> {
       ),
     );
   }
-
   void _confirmDelete(int id, EmployeesController controller) {
     Get.defaultDialog(
       title: "تنبيه",

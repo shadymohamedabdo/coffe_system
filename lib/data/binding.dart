@@ -1,9 +1,9 @@
 import 'package:get/get.dart';
 import 'package:untitled1/data/controllers/monthly_report_controller.dart';
 import 'package:untitled1/data/controllers/shift_controller.dart';
-
 import 'controllers/dashboard_controller.dart';
 import 'controllers/employees_controller.dart';
+import 'controllers/home_controller.dart';
 import 'controllers/login_controller.dart';
 import 'controllers/products_controller.dart';
 import 'controllers/profit_controller.dart';
@@ -17,7 +17,12 @@ class LoginBinding extends Bindings {
     Get.lazyPut<LoginController>(() => LoginController());
   }
 }
-
+class HomeBinding extends Bindings {
+  @override
+  void dependencies() {
+    Get.lazyPut<HomeController>(() => HomeController());
+  }
+}
 class EmployeesBinding extends Bindings {
   @override
   void dependencies() {

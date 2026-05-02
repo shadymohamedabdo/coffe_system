@@ -95,65 +95,62 @@ class ProductsScreen extends GetView<ProductsController> {
   // ✅ بطاقة المنتج - رمادية إذا كان الرصيد صفراً
   Widget _buildPremiumProductCard(Product p) {
     double remaining = controller.productStock[p.id] ?? 0.0;
-    bool isAvailable = remaining > 0;
+    String status = controller.getStockStatus(p.id!);
+
+    // تحديد الألوان بناءً على الحالة
+    Color cardColor = Colors.white;
+    Color statusColor = Colors.green;
+    String statusText = 'متوفر: $remaining';
+
+    if (status == 'out') {
+      cardColor = Colors.grey[200]!;
+      statusColor = Colors.red;
+      statusText = 'نفذت الكمية';
+    } else if (status == 'low') {
+      cardColor = Colors.orange[50]!; // لون برتقالي خفيف جداً
+      statusColor = Colors.orange[800]!;
+      statusText = 'رصيد منخفض: $remaining';
+    }
 
     final style = _getCategoryStyle(p.category);
+
     return Container(
       decoration: BoxDecoration(
-        color: isAvailable ? Colors.white : Colors.grey[200],
+        color: cardColor,
         borderRadius: BorderRadius.circular(25),
+        border: status == 'low' ? Border.all(color: Colors.orange.withValues(alpha: 0.5), width: 1) : null,
         boxShadow: [
           BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 5))
         ],
       ),
-      child: Stack(
-        children: [
-          Positioned(
-            right: -10, bottom: -10,
-            child: IgnorePointer(
-              child: Icon(style['icon'], size: 80,
-                  color: style['color'].withOpacity(0.05)),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(15),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: Padding(
+        padding: const EdgeInsets.all(15),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _buildBadge(p.category, style['color']),
-                    Row(
-                      children: [
-                        _buildActionBtn(Icons.edit, Colors.blue, () => _showEditDialog(p), isAvailable),
-                        const SizedBox(width: 8),
-                        _buildActionBtn(Icons.delete_forever, Colors.red, () => _confirmDelete(p), true),
-                      ],
-                    )
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(p.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    maxLines: 1, overflow: TextOverflow.ellipsis),
-                const Spacer(),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    if (!isAvailable)
-                      const Text('(غير متوفر)', style: TextStyle(color: Colors.red, fontSize: 12)),
-                    Text('${p.price} ج.م', style: TextStyle(fontSize: 18,
-                        fontWeight: FontWeight.w900, color: isAvailable ? Colors.green[800] : Colors.grey[600])),
-                  ],
-                ),
+                _buildBadge(p.category, style['color']),
+                _buildActionBtn(Icons.edit, Colors.blue, () => _showEditDialog(p), status != 'out'),
               ],
             ),
-          )
-        ],
+            const SizedBox(height: 12),
+            Text(p.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Spacer(),
+            // عرض الحالة والرصيد
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(statusText, style: TextStyle(color: statusColor, fontSize: 12, fontWeight: FontWeight.bold)),
+                Text('${p.price} ج.م', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
-
   Widget _buildActionBtn(IconData icon, Color color, VoidCallback onTap, bool enabled) {
     return Material(
       color: Colors.transparent,
@@ -165,7 +162,7 @@ class ProductsScreen extends GetView<ProductsController> {
           decoration: BoxDecoration(
               color: color.withValues(alpha: enabled ? 0.1 : 0.05),
               borderRadius: BorderRadius.circular(8)),
-          child: Icon(icon, color: enabled ? color : color.withOpacity(0.5), size: 20),
+          child: Icon(icon, color: enabled ? color : color.withValues(alpha: 0.5), size: 20),
         ),
       ),
     );
@@ -179,22 +176,7 @@ class ProductsScreen extends GetView<ProductsController> {
     );
   }
 
-  void _confirmDelete(Product p) {
-    Get.defaultDialog(
-      title: "حذف!",
-      middleText: "حذف ${p.name} من المخزن؟",
-      textConfirm: "نعم، حذف",
-      textCancel: "تراجع",
-      confirmTextColor: Colors.white,
-      buttonColor: Colors.red,
-      onConfirm: () {
-        controller.deleteProduct(p.id!);
-        Get.back();
-      },
-    );
-  }
 
-  // ========== نموذج الإضافة الجديد (القائمة منسدلة من المشتريات) ==========
   Widget _buildCreativeSideForm() {
     return Container(
       width: 320,

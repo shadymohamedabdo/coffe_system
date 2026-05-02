@@ -57,7 +57,6 @@ class DashboardController extends GetxController {
     } catch (e) {
       hasError(true);
       errorMessage('فشل في تحميل البيانات: ${e.toString()}');
-      print("Error loading dashboard data: $e");
     } finally {
       isLoading(false);
     }

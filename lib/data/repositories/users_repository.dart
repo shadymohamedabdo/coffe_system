@@ -23,13 +23,13 @@ class UsersRepository {
     });
   }
 
-  // ✅ إرجاع bool للإشارة إلى نجاح الحذف
-  Future<bool> deleteUser(int id) async {
+  Future<List<Map<String, dynamic>>> deleteUser(int id) async {
     final db = await dbHelper.database;
-    final result = await db.delete('users', where: 'id = ?', whereArgs: [id]);
-    return result > 0;
-  }
 
+    await db.delete('users', where: 'id = ?', whereArgs: [id]);
+    // return new list of employees
+    return await db.query('users');
+  }
   Future<Map<String, dynamic>?> login(String username, String password) async {
     final db = await dbHelper.database;
     final result = await db.query(

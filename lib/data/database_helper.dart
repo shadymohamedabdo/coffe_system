@@ -17,6 +17,10 @@ class DatabaseHelper {
 
   static void notifySalesChanged() => _salesStreamController.add(null);
   static void notifyShiftsChanged() => _shiftsStreamController.add(null);
+  static void disposeStreams() {
+    _salesStreamController.close();
+    _shiftsStreamController.close();
+  }
 
   Future<Database> get database async {
     if (_db != null) return _db!;
