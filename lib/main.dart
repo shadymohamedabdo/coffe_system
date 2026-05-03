@@ -10,8 +10,6 @@ Future<void> main() async {
   sqfliteFfiInit();
   databaseFactory = databaseFactoryFfi;
 
-
-
   runApp(const CoffeePOSApp());
 }
 

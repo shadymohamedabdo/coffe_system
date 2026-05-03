@@ -13,62 +13,69 @@ import 'controllers/shift_report_controller.dart';
 class LoginBinding extends Bindings {
   @override
   void dependencies() {
-    // هنا بنستخدم lazyPut عشان يتكريت أول ما نروح للشاشة بس
     Get.lazyPut<LoginController>(() => LoginController());
   }
 }
+
 class HomeBinding extends Bindings {
   @override
   void dependencies() {
     Get.lazyPut<HomeController>(() => HomeController());
   }
 }
+
 class EmployeesBinding extends Bindings {
   @override
   void dependencies() {
-    // الكنترولر ده مش هيتحمل في الرامات غير لما الشاشة تطلبه
-    Get.lazyPut<EmployeesController>(() => EmployeesController());
+    Get.lazyPut<EmployeesController>(() => EmployeesController(), fenix: true);
   }
 }
+
 class ProductsBinding extends Bindings {
   @override
   void dependencies() {
-    Get.lazyPut<ProductsController>(() => ProductsController());
+    Get.lazyPut<ProductsController>(() => ProductsController(), fenix: true);
   }
 }
+
 class ShiftBinding extends Bindings {
   @override
   void dependencies() {
-    Get.lazyPut<ShiftsController>(() => ShiftsController());
+    Get.lazyPut<ShiftsController>(() => ShiftsController(), fenix: true);
   }
 }
+
 class DashboardBinding extends Bindings {
   @override
   void dependencies() {
-    Get.lazyPut<DashboardController>(() => DashboardController());
+    Get.lazyPut<DashboardController>(() => DashboardController(), fenix: true);
   }
 }
+
 class MonthlyReportBinding extends Bindings {
   @override
   void dependencies() {
-    Get.lazyPut<MonthlyReportController>(() => MonthlyReportController());
+    Get.lazyPut<MonthlyReportController>(() => MonthlyReportController(), fenix: true);
   }
 }
+
 class CalculatorBinding extends Bindings {
   @override
   void dependencies() {
-    Get.lazyPut<ProfitController>(() => ProfitController());
+    Get.lazyPut<ProfitController>(() => ProfitController(), fenix: true);
   }
 }
+
 class ShiftReportBinding extends Bindings {
   @override
   void dependencies() {
-    Get.lazyPut<ShiftReportController>(() => ShiftReportController());
+    Get.lazyPut<ShiftReportController>(() => ShiftReportController(), fenix: true);
   }
 }
+
 class AddSaleBinding extends Bindings {
   @override
   void dependencies() {
-    Get.lazyPut<SalesController>(() => SalesController());
+    Get.lazyPut<SalesController>(() => SalesController(), fenix: true);
   }
 }

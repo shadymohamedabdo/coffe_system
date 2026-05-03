@@ -2,53 +2,78 @@ import 'dart:async';
 import 'package:path/path.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
+/// كلاس مسؤول عن إدارة قاعدة البيانات بالكامل
 class DatabaseHelper {
+  // Singleton instance عشان نستخدم نفس الـ DB في كل التطبيق
   static final DatabaseHelper instance = DatabaseHelper._init();
+
+  // متغير لتخزين نسخة قاعدة البيانات
   static Database? _db;
 
   DatabaseHelper._init();
 
-  // Streams للتحديث التلقائي
+  /// ===== Streams =====
+  /// دول علشان نعمل تحديث تلقائي للشاشات لما يحصل تغيير في الداتا
+
   static final _salesStreamController = StreamController<void>.broadcast();
   static final _shiftsStreamController = StreamController<void>.broadcast();
 
+  // Stream خاص بالمبيعات
   static Stream<void> get salesStream => _salesStreamController.stream;
+
+  // Stream خاص بالشيفتات
   static Stream<void> get shiftsStream => _shiftsStreamController.stream;
 
+  // تنبيه إن المبيعات اتغيرت
   static void notifySalesChanged() => _salesStreamController.add(null);
+
+  // تنبيه إن الشيفتات اتغيرت
   static void notifyShiftsChanged() => _shiftsStreamController.add(null);
+
+  // إغلاق الـ streams (يفضل عند إغلاق التطبيق)
   static void disposeStreams() {
     _salesStreamController.close();
     _shiftsStreamController.close();
   }
 
+  /// الحصول على نسخة قاعدة البيانات (Singleton DB)
   Future<Database> get database async {
     if (_db != null) return _db!;
     _db = await _initDB('coffee_pos.db');
     return _db!;
   }
 
+  /// تهيئة قاعدة البيانات
   Future<Database> _initDB(String filePath) async {
+    // تهيئة sqflite للـ desktop
     sqfliteFfiInit();
+
+    // مسار قاعدة البيانات
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
+
+    // فتح قاعدة البيانات
     return await databaseFactoryFfi.openDatabase(
       path,
       options: OpenDatabaseOptions(
-        version: 10, // رفع الإصدار إلى 10 لإضافة جدول المشتريات
-        onCreate: _createDB,
-        onUpgrade: _onUpgrade,
-        onConfigure: _onConfigure,
+        version: 10, // إصدار قاعدة البيانات
+        onCreate: _createDB, // أول مرة إنشاء الجداول
+        onUpgrade: _onUpgrade, // التحديث بين الإصدارات
+        onConfigure: _onConfigure, // إعدادات إضافية
       ),
     );
   }
 
+  /// إعدادات قاعدة البيانات قبل الاستخدام
   Future<void> _onConfigure(Database db) async {
+    // تفعيل العلاقات بين الجداول (Foreign Keys)
     await db.execute('PRAGMA foreign_keys = ON');
   }
 
+  /// معرفة الشيفت المفتوح حالياً
   Future<int?> getOpenShiftId() async {
     final db = await database;
+
     final List<Map<String, dynamic>> maps = await db.query(
       'shifts',
       where: 'is_open = ?',
@@ -56,13 +81,16 @@ class DatabaseHelper {
       orderBy: 'id DESC',
       limit: 1,
     );
+
     if (maps.isNotEmpty) {
       return maps.first['id'] as int;
     }
     return null;
   }
 
+  /// إنشاء الجداول أول مرة
   Future<void> _createDB(Database db, int version) async {
+    /// جدول المستخدمين
     await db.execute('''
       CREATE TABLE users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -74,6 +102,7 @@ class DatabaseHelper {
       )
     ''');
 
+    /// جدول المنتجات
     await db.execute('''
       CREATE TABLE products (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -85,11 +114,12 @@ class DatabaseHelper {
       )
     ''');
 
+    /// جدول الشيفتات
     await db.execute('''
       CREATE TABLE shifts (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         type TEXT,
-        user_name TEXT, 
+        user_name TEXT,
         date TEXT,
         is_open INTEGER,
         start_time TEXT,
@@ -97,6 +127,7 @@ class DatabaseHelper {
       )
     ''');
 
+    /// جدول المبيعات
     await db.execute('''
       CREATE TABLE sales (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -114,7 +145,7 @@ class DatabaseHelper {
       )
     ''');
 
-    // ✅ جدول المشتريات الجديد
+    /// جدول المشتريات (جديد)
     await db.execute('''
       CREATE TABLE purchases (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -127,24 +158,22 @@ class DatabaseHelper {
       )
     ''');
 
+    /// إنشاء الأدمن الافتراضي
     await _createDefaultAdmin(db);
   }
 
+  /// تحديث قاعدة البيانات عند تغيير الإصدار
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    // ترقية من إصدار أقل من 9 (إضافة user_name)
+    /// لو أقل من إصدار 9 → إضافة user_name
     if (oldVersion < 9) {
-      try {
         await db.execute("ALTER TABLE shifts ADD COLUMN user_name TEXT");
-      } catch (e) {
-        print("Column user_name already exists");
-      }
+      // تنظيف بيانات قديمة
       await db.execute("UPDATE shifts SET start_time = NULL WHERE start_time NOT LIKE '202%'");
       await db.execute("UPDATE shifts SET end_time = NULL WHERE end_time NOT LIKE '202%' AND is_open = 0");
     }
 
-    // ترقية من إصدار أقل من 10 (إضافة جدول purchases)
+    /// لو أقل من إصدار 10 → إنشاء جدول المشتريات
     if (oldVersion < 10) {
-      try {
         await db.execute('''
           CREATE TABLE purchases (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -156,15 +185,17 @@ class DatabaseHelper {
             year INTEGER
           )
         ''');
-        print("✅ تم إنشاء جدول purchases بنجاح");
-      } catch (e) {
-        print("خطأ في إنشاء جدول purchases: $e");
-      }
     }
   }
 
+  /// إنشاء أدمن افتراضي لو مش موجود
   Future<void> _createDefaultAdmin(Database db) async {
-    final result = await db.query('users', where: 'username = ?', whereArgs: ['shady']);
+    final result = await db.query(
+      'users',
+      where: 'username = ?',
+      whereArgs: ['shady'],
+    );
+
     if (result.isEmpty) {
       await db.insert('users', {
         'name': 'شادي',

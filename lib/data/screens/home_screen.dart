@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../binding.dart';
 import '../controllers/home_controller.dart';
-// استيراد الشاشات الخاصة بك
 import 'add_sale_screen.dart';
 import 'shift_report_screen.dart';
 import 'monthly_report.dart';
